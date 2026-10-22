@@ -1,0 +1,26 @@
+{
+  "name": "roombooking-system",
+  "version": "2.0.0",
+  "description": "Modern room booking system with Node.js, Express, and MySQL",
+  "main": "server.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "keywords": ["room", "booking", "reservation", "calendar"],
+  "author": "DonyokuKen",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "mysql2": "^3.11.3"
+  }
+}

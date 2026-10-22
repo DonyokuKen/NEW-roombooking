@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | RoomBooking</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="navbar-container">
+      <a href="/" class="navbar-brand">🏢 RoomBooking</a>
+      <ul class="navbar-menu">
+        <li><a href="/" class="<%= typeof active !== 'undefined' && active === 'dashboard' ? 'active' : '' %>">Dashboard</a></li>
+        <li><a href="/rooms" class="<%= typeof active !== 'undefined' && active === 'rooms' ? 'active' : '' %>">Ruangan</a></li>
+        <% if (typeof currentUser !== 'undefined' && currentUser) { %>
+          <li><a href="/bookings" class="<%= typeof active !== 'undefined' && active === 'bookings' ? 'active' : '' %>">Booking Saya</a></li>
+          <% if (currentUser.isAdmin) { %>
+            <li><a href="/admin" class="<%= typeof active !== 'undefined' && active === 'admin' ? 'active' : '' %>">Admin</a></li>
+          <% } %>
+          <li><a href="/logout">Logout</a></li>
+        <% } else { %>
+          <li><a href="/login">Login</a></li>
+          <li><a href="/register" class="btn btn-primary btn-sm">Daftar</a></li>
+        <% } %>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Flash Messages -->
+  <% if (typeof messages !== 'undefined' && messages) { %>
+    <div class="container" style="margin-top: 1.5rem;">
+      <% if (messages.success) { %>
+        <div class="alert alert-success"><%= messages.success %></div>
+      <% } %>
+      <% if (messages.error) { %>
+        <div class="alert alert-error"><%= messages.error %></div>
+      <% } %>
+      <% if (messages.warning) { %>
+        <div class="alert alert-warning"><%= messages.warning %></div>
+      <% } %>
+      <% if (messages.info) { %>
+        <div class="alert alert-info"><%= messages.info %></div>
+      <% } %>
+    </div>
+  <% } %>
+
+  <!-- Main Content -->
+  <main>
+    <%- body %>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <p>&copy; <%= new Date().getFullYear() %> RoomBooking System. Built with ❤️</p>
+    </div>
+  </footer>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

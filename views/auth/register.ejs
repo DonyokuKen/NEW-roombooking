@@ -1,0 +1,47 @@
+<div class="container" style="max-width: 600px; padding: 4rem 1.5rem;">
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title" style="text-align: center;">Daftar Akun Baru</h2>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="/register">
+        <div class="form-group">
+          <label class="form-label">Nama Lengkap</label>
+          <input type="text" name="namalengkap" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" name="email" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">No. Telepon</label>
+          <input type="text" name="notelp" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Alamat</label>
+          <textarea name="alamat" class="form-control"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Jenis Kelamin</label>
+          <select name="gender" class="form-control">
+            <option value="L">Laki-laki</option>
+            <option value="P">Perempuan</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" name="password" class="form-control" required minlength="6">
+          <small class="text-muted">Minimal 6 karakter</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Konfirmasi Password</label>
+          <input type="password" name="password_confirmation" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Daftar</button>
+      </form>
+      <p class="text-center mt-3">
+        Sudah punya akun? <a href="/login">Login di sini</a>
+      </p>
+    </div>
+  </div>
+</div>

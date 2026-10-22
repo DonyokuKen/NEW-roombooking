@@ -1,0 +1,80 @@
+<div class="hero">
+  <div class="container">
+    <span class="eyebrow">Sistem Booking Ruangan</span>
+    <h1 class="hero-title">Kelola <span class="highlight">Booking</span> dengan Mudah</h1>
+    <p class="hero-subtitle">Platform modern untuk reservasi ruangan yang efisien dan terorganisir</p>
+  </div>
+</div>
+
+<div class="container">
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value"><%= stats.total %></div>
+      <div class="stat-label">Total Booking</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value"><%= stats.pending %></div>
+      <div class="stat-label">Menunggu Approval</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value"><%= stats.accepted %></div>
+      <div class="stat-label">Dikonfirmasi</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value"><%= stats.today %></div>
+      <div class="stat-label">Booking Hari Ini</div>
+    </div>
+  </div>
+  
+  <% if (rooms && rooms.length > 0) { %>
+    <h2 class="mt-4 mb-3">Ruangan Populer</h2>
+    <div class="grid grid-3">
+      <% rooms.forEach(room => { %>
+        <div class="room-card">
+          <div class="room-card-image">🏢</div>
+          <div class="room-card-body">
+            <h3 class="room-card-title"><%= room.namaruangan %></h3>
+            <p class="room-card-desc"><%= room.description || 'Ruangan tersedia untuk booking' %></p>
+            <div class="room-card-footer">
+              <span class="badge badge-<%= room.status === 'A' ? 'confirmed' : 'pending' %>">
+                <%= room.status === 'A' ? 'Tersedia' : 'Tidak Tersedia' %>
+              </span>
+              <a href="/rooms/<%= room.id %>" class="btn btn-sm btn-primary">Lihat Detail</a>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+  
+  <% if (todayEvents && todayEvents.length > 0) { %>
+    <h2 class="mt-4 mb-3">Acara Hari Ini</h2>
+    <div class="booking-list">
+      <% todayEvents.slice(0, 5).forEach(event => { %>
+        <div class="booking-item">
+          <div class="booking-date-badge">
+            <div class="booking-date-day"><%= new Date(event.date).getDate() %></div>
+            <div class="booking-date-month"><%= new Date(event.date).toLocaleDateString('id-ID', {month: 'short'}) %></div>
+          </div>
+          <div class="booking-content">
+            <h3 class="booking-title"><%= event.eventname %></h3>
+            <div class="booking-meta">
+              <span class="booking-meta-item">🏢 <%= event.namaruangan %></span>
+              <span class="booking-meta-item">⏰ <%= event.timestart %> - <%= event.timeend %></span>
+              <span class="booking-meta-item">👤 <%= event.namalengkap %></span>
+            </div>
+          </div>
+          <span class="badge badge-confirmed">Dikonfirmasi</span>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+  
+  <div class="text-center mt-4">
+    <% if (currentUser) { %>
+      <a href="/bookings/create" class="btn btn-primary btn-lg">Buat Booking Baru</a>
+    <% } else { %>
+      <a href="/login" class="btn btn-primary btn-lg">Login untuk Booking</a>
+    <% } %>
+  </div>
+</div>
