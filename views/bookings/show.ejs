@@ -1,0 +1,90 @@
+<%
+const statusLabel = s => ({ P: 'Tertunda', pending: 'Tertunda', A: 'Dikonfirmasi', accepted: 'Dikonfirmasi', confirmed: 'Dikonfirmasi', R: 'Ditolak', rejected: 'Ditolak', C: 'Dibatalkan', cancelled: 'Dibatalkan' }[s] || s);
+const statusBadge = s => ({ P: 'pending', pending: 'pending', A: 'confirmed', accepted: 'confirmed', confirmed: 'confirmed', R: 'rejected', rejected: 'rejected', C: 'cancelled', cancelled: 'cancelled' }[s] || 'pending');
+const selectedIds = String(booking.kelengkapanruangan || '').split(/[;,]/).map(x => x.trim()).filter(Boolean);
+const selectedEquipment = (equipment || []).filter(item => selectedIds.includes(String(item.id)));
+const isOwner = currentUser && String(booking.userid) === String(currentUser.id);
+%>
+<div class="container" style="padding: 2.5rem 1.5rem;">
+  <a href="/bookings" class="btn btn-secondary btn-sm mb-3">&laquo; Kembali ke Booking Saya</a>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h2 class="card-title"><%= booking.eventname %></h2>
+        <span class="badge badge-<%= statusBadge(booking.status) %>"><%= statusLabel(booking.status) %></span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="detail-grid">
+        <div class="detail-section">
+          <div class="detail-row">
+            <span class="detail-label">Ruangan</span>
+            <span class="detail-value"><%= booking.namaruangan || '-' %></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Tanggal</span>
+            <span class="detail-value"><%= new Date(booking.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) %></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Waktu</span>
+            <span class="detail-value"><%= booking.timestart %> - <%= booking.timeend %></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Jumlah Peserta</span>
+            <span class="detail-value"><%= booking.eventpeoplequantity %> orang</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Departemen</span>
+            <span class="detail-value"><%= booking.namadepartment || '-' %></span>
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-row">
+            <span class="detail-label">Dibuat Oleh</span>
+            <span class="detail-value"><%= booking.namalengkap || '-' %></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Deskripsi</span>
+            <span class="detail-value"><%= booking.eventdescription || '-' %></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Kelengkapan</span>
+            <span class="detail-value">
+              <% if (selectedEquipment.length > 0) { %>
+                <%= selectedEquipment.map(item => item.NamaKelengkapan).join(', ') %>
+              <% } else if (selectedIds.length > 0) { %>
+                <%= selectedIds.join(', ') %>
+              <% } else { %>
+                -
+              <% } %>
+            </span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Peserta Terkait</span>
+            <span class="detail-value">
+              <% if (bookingUsers && bookingUsers.length > 0) { %>
+                <%= bookingUsers.map(u => u.namalengkap).join(', ') %>
+              <% } else { %>
+                -
+              <% } %>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <% if (isOwner) { %>
+        <div class="d-flex gap-2 flex-wrap mt-4">
+          <% if (booking.status === 'P') { %>
+            <a href="/bookings/<%= booking.id %>/edit" class="btn btn-primary">Edit Booking</a>
+          <% } %>
+          <% if (booking.status === 'P' || booking.status === 'A') { %>
+            <form method="POST" action="/bookings/<%= booking.id %>/cancel" onsubmit="return confirm('Batalkan booking ini?')">
+              <button type="submit" class="btn btn-danger">Batalkan Booking</button>
+            </form>
+          <% } %>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>

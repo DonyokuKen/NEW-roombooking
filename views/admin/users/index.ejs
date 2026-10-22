@@ -1,0 +1,64 @@
+<%
+const roleLabel = r => ({ U: 'Pengguna', M: 'Manager', SU: 'Super Admin' }[r] || r);
+const qs = p => `/admin/users?page=${p}&search=${encodeURIComponent(search || '')}`;
+%>
+<div class="container-fluid" style="padding: 2.5rem 1.5rem;">
+  <h1 class="mb-2">Kelola Pengguna</h1>
+  <p class="text-muted mb-4"><%= total %> pengguna ditemukan</p>
+
+  <form method="GET" action="/admin/users" class="filters search-form mb-4">
+    <div class="filters-row">
+      <div class="form-group" style="flex: 1;">
+        <input type="text" name="search" class="form-control" placeholder="Cari nama atau email..." value="<%= search || '' %>">
+      </div>
+      <button type="submit" class="btn btn-primary">Cari</button>
+    </div>
+  </form>
+
+  <% if (users && users.length > 0) { %>
+    <div class="card">
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Nama Lengkap</th>
+              <th>Email</th>
+              <th>No. Telepon</th>
+              <th>Jenis Kelamin</th>
+              <th>Peran</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% users.forEach(user => { %>
+              <tr>
+                <td><%= user.namalengkap %></td>
+                <td><%= user.email %></td>
+                <td><%= user.notelp || '-' %></td>
+                <td><%= user.gender === 'P' ? 'Perempuan' : 'Laki-laki' %></td>
+                <td><%= roleLabel(user.roles) %></td>
+                <td><span class="badge badge-<%= user.userstatus === 'A' ? 'confirmed' : 'cancelled' %>"><%= user.userstatus === 'A' ? 'Aktif' : 'Nonaktif' %></span></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <% if (totalPages > 1) { %>
+      <div class="pagination">
+        <% if (page > 1) { %><a href="<%= qs(page - 1) %>">&laquo; Sebelumnya</a><% } %>
+        <% for (let p = Math.max(1, page - 2); p <= Math.min(totalPages, page + 2); p++) { %>
+          <% if (p === page) { %><span class="active"><%= p %></span><% } else { %><a href="<%= qs(p) %>"><%= p %></a><% } %>
+        <% } %>
+        <% if (page < totalPages) { %><a href="<%= qs(page + 1) %>">Berikutnya &raquo;</a><% } %>
+      </div>
+    <% } %>
+  <% } else { %>
+    <div class="empty-state">
+      <div class="empty-state-icon">👥</div>
+      <h2 class="empty-state-title">Tidak ada pengguna ditemukan</h2>
+      <p class="empty-state-text">Coba ubah kata kunci pencarian Anda.</p>
+    </div>
+  <% } %>
+</div>

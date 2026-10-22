@@ -1,0 +1,89 @@
+<%
+const dateVal = booking.date instanceof Date ? booking.date.toISOString().split('T')[0] : String(booking.date || '');
+const selectedIds = String(booking.kelengkapanruangan || '').split(/[;,]/).map(x => x.trim()).filter(Boolean);
+%>
+<div class="container" style="max-width: 760px; padding: 2.5rem 1.5rem;">
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Edit Booking</h2>
+    </div>
+    <div class="card-body">
+      <div id="conflict-warning" class="alert alert-warning" style="display: none;"></div>
+      <form method="POST" action="/bookings/<%= booking.id %>" id="booking-form">
+        <input type="hidden" id="booking_id" value="<%= booking.id %>">
+        <div class="form-group">
+          <label class="form-label" for="room_id">Ruangan</label>
+          <select name="room_id" id="room_id" class="form-control" required>
+            <% rooms.forEach(room => { %>
+              <option value="<%= room.id %>" <%= String(booking.ruanganid) === String(room.id) ? 'selected' : '' %>><%= room.namaruangan %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="grid grid-3">
+          <div class="form-group">
+            <label class="form-label" for="date">Tanggal</label>
+            <input type="date" name="date" id="date" class="form-control" value="<%= dateVal %>" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="timestart">Waktu Mulai</label>
+            <input type="time" name="timestart" id="timestart" class="form-control" value="<%= String(booking.timestart || '').substring(0, 5) %>" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="timeend">Waktu Selesai</label>
+            <input type="time" name="timeend" id="timeend" class="form-control" value="<%= String(booking.timeend || '').substring(0, 5) %>" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="eventname">Nama Acara</label>
+          <input type="text" name="eventname" id="eventname" class="form-control" value="<%= booking.eventname %>" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="eventdescription">Deskripsi Acara</label>
+          <textarea name="eventdescription" id="eventdescription" class="form-control"><%= booking.eventdescription || '' %></textarea>
+        </div>
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label class="form-label" for="eventpeoplequantity">Jumlah Peserta</label>
+            <input type="number" name="eventpeoplequantity" id="eventpeoplequantity" class="form-control" min="1" value="<%= booking.eventpeoplequantity %>" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="department">Departemen</label>
+            <select name="department" id="department" class="form-control" required>
+              <option value="">-- Pilih Departemen --</option>
+              <% departments.forEach(dept => { %>
+                <option value="<%= dept.id %>" <%= String(booking.department) === String(dept.id) ? 'selected' : '' %>><%= dept.namadepartment %></option>
+              <% }) %>
+            </select>
+          </div>
+        </div>
+
+        <div id="kelengkapan-container">
+          <% if (equipment && equipment.length > 0) { %>
+            <div class="form-group">
+              <label class="form-label">Kelengkapan yang Dibutuhkan</label>
+              <% equipment.forEach(item => { %>
+                <div class="mb-2">
+                  <label class="d-flex align-items-center">
+                    <input type="checkbox" name="kelengkapan[]" value="<%= item.id %>" <%= selectedIds.includes(String(item.id)) ? 'checked' : '' %>>
+                    <span><%= item.NamaKelengkapan %></span>
+                  </label>
+                </div>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <p class="text-muted">Tidak ada kelengkapan tersedia untuk ruangan ini</p>
+          <% } %>
+        </div>
+
+        <% if (bookingUsers && bookingUsers.length > 0) { %>
+          <p class="text-muted mb-3">Peserta terkait: <%= bookingUsers.map(u => u.namalengkap).join(', ') %></p>
+        <% } %>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+          <a href="/bookings/<%= booking.id %>" class="btn btn-secondary">Batal</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

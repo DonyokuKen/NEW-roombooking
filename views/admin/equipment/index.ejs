@@ -1,0 +1,47 @@
+<%
+const eqStatus = s => s === 'A' ? ['Tersedia', 'confirmed'] : (s === 'D' ? ['Dihapus', 'cancelled'] : ['Tidak Tersedia', 'pending']);
+const roomName = id => { const r = (rooms || []).find(r => String(r.id) === String(id)); return r ? r.namaruangan : null; };
+const groups = {};
+(equipment || []).forEach(item => {
+  const key = item.namaruangan || roomName(item.idruangan) || 'Tanpa Ruangan';
+  if (!groups[key]) groups[key] = [];
+  groups[key].push(item);
+});
+const groupNames = Object.keys(groups).sort();
+%>
+<div class="container-fluid" style="padding: 2.5rem 1.5rem;">
+  <h1 class="mb-2">Kelola Kelengkapan</h1>
+  <p class="text-muted mb-4"><%= equipment.length %> kelengkapan ditemukan</p>
+
+  <% if (equipment && equipment.length > 0) { %>
+    <% groupNames.forEach(name => { %>
+      <h2 class="mt-4 mb-3">🏢 <%= name %></h2>
+      <div class="card mb-4">
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Nama Kelengkapan</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% groups[name].forEach(item => { const st = eqStatus(item.status); %>
+                <tr>
+                  <td><%= item.NamaKelengkapan %></td>
+                  <td><span class="badge badge-<%= st[1] %>"><%= st[0] %></span></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% }) %>
+  <% } else { %>
+    <div class="empty-state">
+      <div class="empty-state-icon">🎒</div>
+      <h2 class="empty-state-title">Tidak ada kelengkapan ditemukan</h2>
+      <p class="empty-state-text">Belum ada data kelengkapan pada sistem.</p>
+    </div>
+  <% } %>
+</div>

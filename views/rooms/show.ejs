@@ -1,0 +1,55 @@
+<div class="container" style="padding: 2.5rem 1.5rem;">
+  <a href="/rooms" class="btn btn-secondary btn-sm mb-3">&laquo; Kembali ke Daftar Ruangan</a>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h1 class="mb-1"><%= room.namaruangan %></h1>
+        <span class="badge badge-<%= room.status === 'A' ? 'confirmed' : 'pending' %>">
+          <%= room.status === 'A' ? 'Tersedia' : 'Tidak Tersedia' %>
+        </span>
+      </div>
+      <p class="text-muted mt-2"><%= room.description || 'Ruangan tersedia untuk booking' %></p>
+      <% if (room.status === 'A') { %>
+        <a href="/bookings/create?room_id=<%= room.id %>" class="btn btn-primary mt-3">Booking Ruangan Ini</a>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-section">
+      <h2 class="mb-3">Kelengkapan Ruangan</h2>
+      <% if (equipment && equipment.length > 0) { %>
+        <div class="equipment-list">
+          <% equipment.forEach(item => { %>
+            <div class="equipment-item">✅ <%= item.NamaKelengkapan %></div>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <p class="text-muted">Tidak ada kelengkapan tercatat untuk ruangan ini.</p>
+      <% } %>
+    </div>
+
+    <div class="detail-section">
+      <h2 class="mb-3">Booking Hari Ini</h2>
+      <% if (todayBookings && todayBookings.length > 0) { %>
+        <div class="booking-list">
+          <% todayBookings.forEach(booking => { %>
+            <div class="booking-item">
+              <div class="booking-content">
+                <h3 class="booking-title"><%= booking.eventname %></h3>
+                <div class="booking-meta">
+                  <span class="booking-meta-item">⏰ <%= booking.timestart %> - <%= booking.timeend %></span>
+                  <span class="booking-meta-item">👤 <%= booking.namalengkap || '-' %></span>
+                </div>
+              </div>
+              <span class="badge badge-confirmed">Dikonfirmasi</span>
+            </div>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <p class="text-muted">Tidak ada booking terkonfirmasi untuk hari ini.</p>
+      <% } %>
+    </div>
+  </div>
+</div>

@@ -60,6 +60,37 @@ app.use(async (req, res, next) => {
   next();
 });
 
+// Layout wrapper — render every view inside views/layouts/main.ejs
+app.use((req, res, next) => {
+  const originalRender = res.render.bind(res);
+  res.render = function (view, locals, callback) {
+    if (typeof locals === 'function') {
+      callback = locals;
+      locals = {};
+    }
+    locals = locals || {};
+    if (view === 'layouts/main') {
+      return originalRender(view, locals, callback);
+    }
+    originalRender(view, locals, (err, html) => {
+      if (err) {
+        if (callback) return callback(err);
+        return next(err);
+      }
+      const layoutLocals = Object.assign({}, locals, { body: html });
+      originalRender('layouts/main', layoutLocals, (layoutErr, fullHtml) => {
+        if (layoutErr) {
+          if (callback) return callback(layoutErr);
+          return next(layoutErr);
+        }
+        if (callback) return callback(null, fullHtml);
+        return res.send(fullHtml);
+      });
+    });
+  };
+  next();
+});
+
 // Helper functions
 function setFlash(req, type, message) {
   if (!req.session.messages) req.session.messages = {};

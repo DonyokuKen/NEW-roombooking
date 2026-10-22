@@ -1,0 +1,88 @@
+<div class="container" style="padding: 2.5rem 1.5rem;">
+  <h1 class="mb-4">Admin Dashboard</h1>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value"><%= stats.total %></div>
+      <div class="stat-label">Total Booking</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value"><%= stats.pending %></div>
+      <div class="stat-label">Menunggu Approval</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value"><%= stats.accepted %></div>
+      <div class="stat-label">Dikonfirmasi</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value"><%= stats.today %></div>
+      <div class="stat-label">Booking Hari Ini</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value"><%= stats.rooms %></div>
+      <div class="stat-label">Ruangan Aktif</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value"><%= stats.users %></div>
+      <div class="stat-label">Pengguna Aktif</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value"><%= stats.departments %></div>
+      <div class="stat-label">Departemen Aktif</div>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2 flex-wrap mt-4 mb-4">
+    <a href="/admin/bookings" class="btn btn-primary">Kelola Booking</a>
+    <a href="/admin/rooms" class="btn btn-secondary">Kelola Ruangan</a>
+    <a href="/admin/departments" class="btn btn-secondary">Kelola Departemen</a>
+    <a href="/admin/equipment" class="btn btn-secondary">Kelola Kelengkapan</a>
+    <a href="/admin/users" class="btn btn-secondary">Kelola Pengguna</a>
+  </div>
+
+  <h2 class="mt-4 mb-3">Booking Menunggu Persetujuan</h2>
+  <% if (pendingBookings && pendingBookings.length > 0) { %>
+    <div class="booking-list">
+      <% pendingBookings.forEach(booking => { %>
+        <div class="booking-item">
+          <div class="booking-date-badge">
+            <div class="booking-date-day"><%= new Date(booking.date).getDate() %></div>
+            <div class="booking-date-month"><%= new Date(booking.date).toLocaleDateString('id-ID', { month: 'short' }) %></div>
+          </div>
+          <div class="booking-content">
+            <h3 class="booking-title"><a href="/admin/bookings/<%= booking.id %>"><%= booking.eventname %></a></h3>
+            <div class="booking-meta">
+              <span class="booking-meta-item">🏢 <%= booking.namaruangan || '-' %></span>
+              <span class="booking-meta-item">⏰ <%= booking.timestart %> - <%= booking.timeend %></span>
+              <span class="booking-meta-item">👤 <%= booking.namalengkap || '-' %></span>
+            </div>
+          </div>
+          <span class="badge badge-pending">Tertunda</span>
+        </div>
+      <% }) %>
+    </div>
+  <% } else { %>
+    <p class="text-muted">Tidak ada booking yang menunggu persetujuan.</p>
+  <% } %>
+
+  <h2 class="mt-4 mb-3">Acara Hari Ini</h2>
+  <% if (todayEvents && todayEvents.length > 0) { %>
+    <div class="booking-list">
+      <% todayEvents.forEach(event => { %>
+        <div class="booking-item">
+          <div class="booking-content">
+            <h3 class="booking-title"><%= event.eventname %></h3>
+            <div class="booking-meta">
+              <span class="booking-meta-item">🏢 <%= event.namaruangan || '-' %></span>
+              <span class="booking-meta-item">⏰ <%= event.timestart %> - <%= event.timeend %></span>
+              <span class="booking-meta-item">👤 <%= event.namalengkap || '-' %></span>
+            </div>
+          </div>
+          <span class="badge badge-confirmed">Dikonfirmasi</span>
+        </div>
+      <% }) %>
+    </div>
+  <% } else { %>
+    <p class="text-muted">Tidak ada acara terkonfirmasi hari ini.</p>
+  <% } %>
+</div>

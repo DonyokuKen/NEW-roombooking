@@ -1,0 +1,91 @@
+<%
+const statusLabel = s => ({ P: 'Tertunda', pending: 'Tertunda', A: 'Dikonfirmasi', accepted: 'Dikonfirmasi', confirmed: 'Dikonfirmasi', R: 'Ditolak', rejected: 'Ditolak', C: 'Dibatalkan', cancelled: 'Dibatalkan' }[s] || s);
+const statusBadge = s => ({ P: 'pending', pending: 'pending', A: 'confirmed', accepted: 'confirmed', confirmed: 'confirmed', R: 'rejected', rejected: 'rejected', C: 'cancelled', cancelled: 'cancelled' }[s] || 'pending');
+const qs = p => `/admin/bookings?page=${p}&search=${encodeURIComponent(search || '')}&status=${encodeURIComponent(status || '')}&date=${encodeURIComponent(date || '')}`;
+%>
+<div class="container-fluid" style="padding: 2.5rem 1.5rem;">
+  <h1 class="mb-2">Kelola Booking</h1>
+  <p class="text-muted mb-4"><%= total %> booking ditemukan</p>
+
+  <form method="GET" action="/admin/bookings" class="filters search-form mb-4">
+    <div class="filters-row">
+      <div class="form-group" style="flex: 1;">
+        <input type="text" name="search" class="form-control" placeholder="Cari acara, ruangan, atau pengguna..." value="<%= search || '' %>">
+      </div>
+      <div class="form-group">
+        <select name="status" class="form-control">
+          <option value="" <%= status === '' ? 'selected' : '' %>>Semua Status</option>
+          <option value="P" <%= status === 'P' ? 'selected' : '' %>>Tertunda</option>
+          <option value="A" <%= status === 'A' ? 'selected' : '' %>>Dikonfirmasi</option>
+          <option value="R" <%= status === 'R' ? 'selected' : '' %>>Ditolak</option>
+          <option value="C" <%= status === 'C' ? 'selected' : '' %>>Dibatalkan</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <input type="date" name="date" class="form-control" value="<%= date || '' %>" data-no-min="1">
+      </div>
+      <button type="submit" class="btn btn-primary">Filter</button>
+    </div>
+  </form>
+
+  <% if (bookings && bookings.length > 0) { %>
+    <div class="card">
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Acara</th>
+              <th>Ruangan</th>
+              <th>Tanggal</th>
+              <th>Waktu</th>
+              <th>Pemohon</th>
+              <th>Status</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% bookings.forEach(booking => { %>
+              <tr>
+                <td><a href="/admin/bookings/<%= booking.id %>"><%= booking.eventname %></a></td>
+                <td><%= booking.namaruangan || '-' %></td>
+                <td><%= new Date(booking.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) %></td>
+                <td><%= booking.timestart %> - <%= booking.timeend %></td>
+                <td><%= booking.namalengkap || '-' %></td>
+                <td><span class="badge badge-<%= statusBadge(booking.status) %>"><%= statusLabel(booking.status) %></span></td>
+                <td>
+                  <div class="d-flex gap-1">
+                    <a href="/admin/bookings/<%= booking.id %>" class="btn btn-sm btn-secondary">Detail</a>
+                    <% if (booking.status === 'P') { %>
+                      <form method="POST" action="/admin/bookings/<%= booking.id %>/approve" onsubmit="return confirm('Setujui booking ini?')">
+                        <button type="submit" class="btn btn-sm btn-success">Setujui</button>
+                      </form>
+                      <form method="POST" action="/admin/bookings/<%= booking.id %>/reject" onsubmit="return confirm('Tolak booking ini?')">
+                        <button type="submit" class="btn btn-sm btn-danger">Tolak</button>
+                      </form>
+                    <% } %>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <% if (totalPages > 1) { %>
+      <div class="pagination">
+        <% if (page > 1) { %><a href="<%= qs(page - 1) %>">&laquo; Sebelumnya</a><% } %>
+        <% for (let p = Math.max(1, page - 2); p <= Math.min(totalPages, page + 2); p++) { %>
+          <% if (p === page) { %><span class="active"><%= p %></span><% } else { %><a href="<%= qs(p) %>"><%= p %></a><% } %>
+        <% } %>
+        <% if (page < totalPages) { %><a href="<%= qs(page + 1) %>">Berikutnya &raquo;</a><% } %>
+      </div>
+    <% } %>
+  <% } else { %>
+    <div class="empty-state">
+      <div class="empty-state-icon">📅</div>
+      <h2 class="empty-state-title">Tidak ada booking ditemukan</h2>
+      <p class="empty-state-text">Coba ubah filter pencarian Anda.</p>
+    </div>
+  <% } %>
+</div>

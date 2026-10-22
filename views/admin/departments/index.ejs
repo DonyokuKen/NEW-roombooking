@@ -1,0 +1,38 @@
+<%
+const deptStatus = s => s === 'A' ? ['Aktif', 'confirmed'] : (s === 'D' ? ['Dihapus', 'cancelled'] : ['Nonaktif', 'pending']);
+%>
+<div class="container-fluid" style="padding: 2.5rem 1.5rem;">
+  <h1 class="mb-2">Kelola Departemen</h1>
+  <p class="text-muted mb-4"><%= departments.length %> departemen ditemukan</p>
+
+  <% if (departments && departments.length > 0) { %>
+    <div class="card">
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Nama Departemen</th>
+              <th>Deskripsi</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% departments.forEach(dept => { const st = deptStatus(dept.status); %>
+              <tr>
+                <td><%= dept.namadepartment %></td>
+                <td><%= dept.deskripsi || '-' %></td>
+                <td><span class="badge badge-<%= st[1] %>"><%= st[0] %></span></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  <% } else { %>
+    <div class="empty-state">
+      <div class="empty-state-icon">🏬</div>
+      <h2 class="empty-state-title">Tidak ada departemen ditemukan</h2>
+      <p class="empty-state-text">Belum ada data departemen pada sistem.</p>
+    </div>
+  <% } %>
+</div>

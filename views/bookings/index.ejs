@@ -1,0 +1,53 @@
+<%
+const statusLabel = s => ({ P: 'Tertunda', pending: 'Tertunda', A: 'Dikonfirmasi', accepted: 'Dikonfirmasi', confirmed: 'Dikonfirmasi', R: 'Ditolak', rejected: 'Ditolak', C: 'Dibatalkan', cancelled: 'Dibatalkan' }[s] || s);
+const statusBadge = s => ({ P: 'pending', pending: 'pending', A: 'confirmed', accepted: 'confirmed', confirmed: 'confirmed', R: 'rejected', rejected: 'rejected', C: 'cancelled', cancelled: 'cancelled' }[s] || 'pending');
+%>
+<div class="container" style="padding: 2.5rem 1.5rem;">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <div>
+      <h1 class="mb-1">Booking Saya</h1>
+      <p class="text-muted"><%= total %> booking ditemukan</p>
+    </div>
+    <a href="/bookings/create" class="btn btn-primary">+ Buat Booking Baru</a>
+  </div>
+
+  <% if (bookings && bookings.length > 0) { %>
+    <div class="booking-list">
+      <% bookings.forEach(booking => { %>
+        <div class="booking-item">
+          <div class="booking-date-badge">
+            <div class="booking-date-day"><%= new Date(booking.date).getDate() %></div>
+            <div class="booking-date-month"><%= new Date(booking.date).toLocaleDateString('id-ID', { month: 'short' }) %></div>
+          </div>
+          <div class="booking-content">
+            <h3 class="booking-title"><a href="/bookings/<%= booking.id %>"><%= booking.eventname %></a></h3>
+            <div class="booking-meta">
+              <span class="booking-meta-item">🏢 <%= booking.namaruangan || '-' %></span>
+              <span class="booking-meta-item">⏰ <%= booking.timestart %> - <%= booking.timeend %></span>
+              <span class="booking-meta-item">📅 <%= new Date(booking.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) %></span>
+              <% if (booking.namadepartment) { %><span class="booking-meta-item">🏬 <%= booking.namadepartment %></span><% } %>
+            </div>
+          </div>
+          <span class="badge badge-<%= statusBadge(booking.status) %>"><%= statusLabel(booking.status) %></span>
+        </div>
+      <% }) %>
+    </div>
+
+    <% if (totalPages > 1) { %>
+      <div class="pagination">
+        <% if (page > 1) { %><a href="/bookings?page=<%= page - 1 %>">&laquo; Sebelumnya</a><% } %>
+        <% for (let p = Math.max(1, page - 2); p <= Math.min(totalPages, page + 2); p++) { %>
+          <% if (p === page) { %><span class="active"><%= p %></span><% } else { %><a href="/bookings?page=<%= p %>"><%= p %></a><% } %>
+        <% } %>
+        <% if (page < totalPages) { %><a href="/bookings?page=<%= page + 1 %>">Berikutnya &raquo;</a><% } %>
+      </div>
+    <% } %>
+  <% } else { %>
+    <div class="empty-state">
+      <div class="empty-state-icon">📅</div>
+      <h2 class="empty-state-title">Belum ada booking</h2>
+      <p class="empty-state-text">Anda belum memiliki booking. Buat booking pertama Anda sekarang.</p>
+      <a href="/bookings/create" class="btn btn-primary">Buat Booking Baru</a>
+    </div>
+  <% } %>
+</div>

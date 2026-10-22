@@ -1,0 +1,93 @@
+<div class="container" style="max-width: 760px; padding: 2.5rem 1.5rem;">
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Buat Booking Baru</h2>
+    </div>
+    <div class="card-body">
+      <div id="conflict-warning" class="alert alert-warning" style="display: none;"></div>
+      <form method="POST" action="/bookings" id="booking-form">
+        <div class="form-group">
+          <label class="form-label" for="room_id">Ruangan</label>
+          <select name="room_id" id="room_id" class="form-control" required>
+            <option value="">-- Pilih Ruangan --</option>
+            <% rooms.forEach(room => { %>
+              <option value="<%= room.id %>" <%= String(selectedRoomId) === String(room.id) ? 'selected' : '' %>><%= room.namaruangan %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="grid grid-3">
+          <div class="form-group">
+            <label class="form-label" for="date">Tanggal</label>
+            <input type="date" name="date" id="date" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="timestart">Waktu Mulai</label>
+            <input type="time" name="timestart" id="timestart" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="timeend">Waktu Selesai</label>
+            <input type="time" name="timeend" id="timeend" class="form-control" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="eventname">Nama Acara</label>
+          <input type="text" name="eventname" id="eventname" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="eventdescription">Deskripsi Acara</label>
+          <textarea name="eventdescription" id="eventdescription" class="form-control"></textarea>
+        </div>
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label class="form-label" for="eventpeoplequantity">Jumlah Peserta</label>
+            <input type="number" name="eventpeoplequantity" id="eventpeoplequantity" class="form-control" min="1" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="department">Departemen</label>
+            <select name="department" id="department" class="form-control" required>
+              <option value="">-- Pilih Departemen --</option>
+              <% departments.forEach(dept => { %>
+                <option value="<%= dept.id %>"><%= dept.namadepartment %></option>
+              <% }) %>
+            </select>
+          </div>
+        </div>
+
+        <div id="kelengkapan-container">
+          <% if (equipment && equipment.length > 0) { %>
+            <div class="form-group">
+              <label class="form-label">Kelengkapan yang Dibutuhkan</label>
+              <% equipment.forEach(item => { %>
+                <div class="mb-2">
+                  <label class="d-flex align-items-center">
+                    <input type="checkbox" name="kelengkapan[]" value="<%= item.id %>">
+                    <span><%= item.NamaKelengkapan %></span>
+                  </label>
+                </div>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <p class="text-muted">Pilih ruangan terlebih dahulu</p>
+          <% } %>
+        </div>
+
+        <% if (users && users.length > 0) { %>
+          <div class="form-group">
+            <label class="form-label">Peserta Terkait (opsional)</label>
+            <% users.filter(u => !currentUser || String(u.id) !== String(currentUser.id)).slice(0, 50).forEach(u => { %>
+              <div class="mb-2">
+                <label class="d-flex align-items-center">
+                  <input type="checkbox" name="associated_users[]" value="<%= u.id %>">
+                  <span><%= u.namalengkap %> (<%= u.email %>)</span>
+                </label>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+
+        <p class="text-muted mb-3">Catatan: booking dari pengguna biasa harus dibuat minimal 48 jam sebelum acara dan menunggu persetujuan admin.</p>
+        <button type="submit" class="btn btn-primary w-100">Buat Booking</button>
+      </form>
+    </div>
+  </div>
+</div>

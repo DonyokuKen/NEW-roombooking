@@ -1,0 +1,30 @@
+<div class="container" style="max-width: 640px; padding: 2.5rem 1.5rem;">
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Tambah Ruangan</h2>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="/admin/rooms">
+        <div class="form-group">
+          <label class="form-label" for="namaruangan">Nama Ruangan</label>
+          <input type="text" name="namaruangan" id="namaruangan" class="form-control" required autofocus>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="description">Deskripsi</label>
+          <textarea name="description" id="description" class="form-control"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="status">Status</label>
+          <select name="status" id="status" class="form-control">
+            <option value="A" selected>Tersedia</option>
+            <option value="N">Tidak Tersedia</option>
+          </select>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Simpan Ruangan</button>
+          <a href="/admin/rooms" class="btn btn-secondary">Batal</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
