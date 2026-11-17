@@ -9,6 +9,11 @@ if (document.getElementById('booking-form')) {
   const timeendSelect = document.getElementById('timeend');
   const kelengkapanContainer = document.getElementById('kelengkapan-container');
   const conflictWarning = document.getElementById('conflict-warning');
+  const submitBtn = form.querySelector('button[type="submit"]');
+  // Last known conflict state, and a sequence number so a slow reply to an
+  // old check can never overwrite the result of a newer one.
+  let hasConflict = false;
+  let checkSeq = 0;
   
   // Load equipment when room changes
   if (roomSelect && kelengkapanContainer) {
@@ -57,45 +62,71 @@ if (document.getElementById('booking-form')) {
   // Check for conflicts when room, date, or time changes
   async function checkConflict() {
     if (!conflictWarning) return;
-    
+    const seq = ++checkSeq;
+
     const roomId = roomSelect?.value;
     const date = dateInput?.value;
     const timestart = timestartSelect?.value;
     const timeend = timeendSelect?.value;
     const bookingId = document.getElementById('booking_id')?.value;
-    
+
     if (!roomId || !date || !timestart || !timeend) {
+      hasConflict = false;
       conflictWarning.style.display = 'none';
+      if (submitBtn) submitBtn.disabled = false;
       return;
     }
-    
+
     try {
       const response = await fetch('/api/check-conflict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ room_id: roomId, date, timestart, timeend, booking_id: bookingId })
       });
-      
+
       const data = await response.json();
-      
+      // A newer check has already started: this reply is stale, ignore it.
+      if (seq !== checkSeq) return;
+
       if (data.success && data.hasConflict) {
+        hasConflict = true;
         conflictWarning.style.display = 'block';
         conflictWarning.innerHTML = `
           <strong>⚠️ Perhatian:</strong> Ruangan sudah dibooking pada waktu ini.
           ${data.conflicts.map(c => `<br>• ${c.eventname} (${c.timestart} - ${c.timeend})`).join('')}
+          <br>Ubah waktu mulai/selesai dulu sebelum menyimpan.
         `;
+        if (submitBtn) submitBtn.disabled = true;
       } else {
+        hasConflict = false;
         conflictWarning.style.display = 'none';
+        if (submitBtn) submitBtn.disabled = false;
       }
     } catch (err) {
       console.error('Error checking conflict:', err);
+      // Check failed (offline?): leave the button alone — the server still
+      // rejects a conflicting booking, so nothing bad gets through.
     }
   }
-  
+
   if (roomSelect) roomSelect.addEventListener('change', checkConflict);
   if (dateInput) dateInput.addEventListener('change', checkConflict);
   if (timestartSelect) timestartSelect.addEventListener('change', checkConflict);
   if (timeendSelect) timeendSelect.addEventListener('change', checkConflict);
+
+  // The calendar prefills room/date/time, so check right away: a prefilled
+  // range that already overlaps must warn before the user touches anything.
+  checkConflict();
+
+  // Final guard: never submit while a conflict is known, even if the button
+  // was somehow left enabled.
+  form.addEventListener('submit', function (e) {
+    if (hasConflict) {
+      e.preventDefault();
+      conflictWarning.style.display = 'block';
+      conflictWarning.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  });
 }
 
 // Confirmation dialogs
@@ -112,9 +143,11 @@ deleteButtons.forEach(button => {
   });
 });
 
-// Auto-hide flash messages
+// Auto-hide flash messages (server-rendered notices only — never the
+// conflict warning, which the booking form manages itself and must stay
+// until the user picks a free time).
 setTimeout(() => {
-  const alerts = document.querySelectorAll('.alert');
+  const alerts = document.querySelectorAll('.alert:not(#conflict-warning)');
   alerts.forEach(alert => {
     alert.style.transition = 'opacity 0.5s';
     alert.style.opacity = '0';
