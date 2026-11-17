@@ -127,8 +127,8 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
     <h3>Booking Baru</h3>
     <div class="m-sub" id="n-room">-</div>
     <div class="m-row"><span>Tanggal</span><span><%= label %></span></div>
-    <div class="m-row"><span>Waktu</span><span id="n-time">-</span></div>
-    <div class="m-row"><span>Durasi</span><span><button type="button" class="cal-dur-btn" id="n-minus">− 30 mnt</button><button type="button" class="cal-dur-btn" id="n-plus">+ 30 mnt</button></span></div>
+    <div class="m-row"><span>Waktu</span><span><input type="time" id="n-start" class="cal-time-input" step="1800"> – <input type="time" id="n-end" class="cal-time-input" step="1800"></span></div>
+    <div class="m-row"><span>Durasi</span><span id="n-chips"><button type="button" class="cal-chip" data-hours="1">1 jam</button><button type="button" class="cal-chip" data-hours="2">2 jam</button><button type="button" class="cal-chip" data-hours="3">3 jam</button><button type="button" class="cal-chip" data-hours="4">4 jam</button></span></div>
     <div class="m-actions">
       <a class="btn btn-primary" id="n-go" href="#" style="flex:1">Buat Booking →</a>
     </div>
@@ -167,9 +167,8 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
 
 // Drag across one room's track to select several hours (the selection
 // stays in the room where the drag started — it can't cross rooms).
-// A plain click/tap still books 1 hour. Duration can also be adjusted
-// in the modal with the + / − 30 mnt buttons (handy on touch, where
-// dragging scrolls the timeline instead).
+// A plain click/tap still books 1 hour. The range can also be picked in
+// the modal: one-tap duration chips (1/2/3/4 jam) or the time pickers.
 (function () {
   var backdrop = document.getElementById('cal-new-modal');
   var closeBtn = document.getElementById('cal-new-close');
@@ -201,13 +200,20 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
   function hideSel(track) {
     track.querySelector('.cal-select').classList.remove('on');
   }
+  function parseTime(v) {
+    var m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(v || '');
+    return m ? (+m[1]) * 60 + (+m[2]) : null;
+  }
   function updateModal() {
     document.getElementById('n-room').textContent = sel.roomName;
-    document.getElementById('n-time').textContent = fmt(sel.start) + ' - ' + fmt(sel.end);
+    document.getElementById('n-start').value = fmt(sel.start);
+    document.getElementById('n-end').value = fmt(sel.end);
     document.getElementById('n-go').href = '/bookings/create?room_id=' + sel.roomId +
       '&date=' + dateStr + '&timestart=' + fmt(sel.start) + '&timeend=' + fmt(sel.end);
-    document.getElementById('n-minus').disabled = (sel.end - sel.start <= 30);
-    document.getElementById('n-plus').disabled = (sel.end >= dayEnd);
+    var dur = sel.end - sel.start;
+    document.querySelectorAll('#n-chips .cal-chip').forEach(function (chip) {
+      chip.classList.toggle('on', dur === (+chip.dataset.hours) * 60);
+    });
   }
   function openModal() {
     updateModal();
@@ -223,16 +229,26 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
     if (e.target === backdrop && Date.now() - openedAt > 400) close();
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
-  document.getElementById('n-minus').addEventListener('click', function () {
-    if (!sel) return;
-    sel.end = Math.max(sel.end - 30, sel.start + 30);
-    updateModal();
+  // One tap sets the whole duration; the time pickers allow any start/end.
+  document.querySelectorAll('#n-chips .cal-chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      if (!sel) return;
+      sel.end = Math.min(sel.start + (+chip.dataset.hours) * 60, dayEnd);
+      updateModal();
+    });
   });
-  document.getElementById('n-plus').addEventListener('click', function () {
+  function readTimes() {
     if (!sel) return;
-    sel.end = Math.min(sel.end + 30, dayEnd);
+    var s = parseTime(document.getElementById('n-start').value);
+    var e = parseTime(document.getElementById('n-end').value);
+    if (s !== null) sel.start = Math.max(dayStart, Math.min(s, dayEnd - 30));
+    if (e !== null) sel.end = Math.max(dayStart + 30, Math.min(e, dayEnd));
+    if (sel.end - sel.start < 30) sel.end = Math.min(sel.start + 30, dayEnd);
+    if (sel.end - sel.start < 30) sel.start = sel.end - 30;
     updateModal();
-  });
+  }
+  document.getElementById('n-start').addEventListener('change', readTimes);
+  document.getElementById('n-end').addEventListener('change', readTimes);
 
   document.querySelectorAll('.cal-track').forEach(function (track) {
     track.addEventListener('pointerdown', function (e) {
