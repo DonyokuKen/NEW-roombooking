@@ -46,7 +46,7 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
   </div>
 
   <% if (!isAdmin) { %>
-    <p class="text-muted mb-3">💡 Booking untuk pengguna biasa minimal 2 hari sebelum acara. Tanggal paling cepat: <%= minLabel %>.</p>
+    <p class="text-muted mb-3">💡 Booking untuk pengguna biasa minimal <%= windowDays %> hari sebelum acara. Tanggal paling cepat: <%= minLabel %>.</p>
   <% } %>
 
   <div class="cal-card">
@@ -104,12 +104,12 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
   </div>
 </div>
 
-<!-- Too-soon popup: regular users can only book 2 days out -->
+<!-- Too-soon popup: regular users can only book windowDays out -->
 <div class="cal-modal-backdrop" id="cal-soon-modal">
   <div class="cal-modal">
     <button type="button" class="cal-modal-close" id="cal-soon-close">✕</button>
     <h3>Belum bisa booking</h3>
-    <div class="m-sub">Booking untuk pengguna biasa minimal 2 hari sebelum acara.</div>
+    <div class="m-sub">Booking untuk pengguna biasa minimal <%= windowDays %> hari sebelum acara.</div>
     <div class="m-row"><span>Tanggal dipilih</span><span><%= label %></span></div>
     <div class="m-row"><span>Paling cepat</span><span><%= minLabel %></span></div>
     <div class="m-actions">
@@ -321,7 +321,7 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
       var d = drag; drag = null;
       hideSel(track);
       if (cancelled) return;
-      // Regular users can only pick slots 2 days out: block the pick with
+      // Regular users can only pick slots windowDays out: block the pick with
       // an explanation instead of opening the booking popup.
       if (!isAdmin && dateStr < minDate) {
         openSoonModal();

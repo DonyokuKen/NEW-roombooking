@@ -1,0 +1,21 @@
+<div class="container" style="max-width: 640px; padding: 2.5rem 1.5rem;">
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Pengaturan</h2>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="/admin/settings">
+        <div class="form-group">
+          <label class="form-label" for="bookingWindowDays">Jarak booking minimal (hari)</label>
+          <input type="number" name="bookingWindowDays" id="bookingWindowDays" class="form-control" min="<%= minDays %>" max="<%= maxDays %>" step="1" value="<%= windowDays %>" required>
+          <p class="text-muted" style="margin-top: 0.5rem;">Pengguna biasa hanya bisa booking acara yang masih <%= windowDays %> hari lagi atau lebih. Admin tidak dibatasi aturan ini.</p>
+          <p class="text-muted">Isi 0 untuk mengizinkan booking di hari yang sama, maksimal <%= maxDays %> hari. Berlaku langsung setelah disimpan — kalender pengguna dan pemeriksaan saat booking memakai angka ini.</p>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Simpan Pengaturan</button>
+          <a href="/admin" class="btn btn-secondary">Batal</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

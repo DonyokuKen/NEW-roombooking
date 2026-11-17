@@ -7,6 +7,9 @@ package-lock.json
 .env.local
 .env.*.local
 
+# Admin settings (runtime file, not in git — same as .env)
+settings.json
+
 # Logs
 logs/
 *.log

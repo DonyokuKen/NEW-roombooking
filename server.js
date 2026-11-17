@@ -8,6 +8,7 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const db = require('./lib/db');
 const notify = require('./lib/notify');
+const settings = require('./lib/settings');
 
 const app = express();
 const PORT = process.env.PORT || 3100;
@@ -159,10 +160,12 @@ app.get('/', async (req, res) => {
     };
     const todayStr = fmtDate(now);
     const isAdmin = !!(res.locals.currentUser && res.locals.currentUser.isAdmin);
-    // Regular users can only book 2 days out, so their calendar opens on
+    // Regular users can only book windowDays out, so their calendar opens on
     // the first bookable day; admins open on today. minDate is the earliest
     // date a regular user may pick a slot on (the popup enforces it).
-    const minDate = isAdmin ? todayStr : shiftDate(todayStr, 2);
+    // The window is an admin setting (lib/settings.js), not hardcoded.
+    const windowDays = settings.getBookingWindowDays();
+    const minDate = isAdmin ? todayStr : shiftDate(todayStr, windowDays);
     const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : minDate;
     const shift = days => shiftDate(date, days);
     const roomFilter = req.query.room || '';
@@ -175,7 +178,7 @@ app.get('/', async (req, res) => {
     res.render('index', {
       title: 'Dashboard - RoomBooking',
       date, prevDate: shift(-1), nextDate: shift(1), todayStr,
-      label, calRooms, calBookings, roomFilter,
+      label, calRooms, calBookings, roomFilter, windowDays,
       startHour: 7, endHour: 23, minDate, minLabel, isAdmin
     });
   } catch (err) {
@@ -482,7 +485,8 @@ app.get('/bookings/create', requireAuth, async (req, res) => {
       users,
       selectedRoomId,
       prefill,
-      equipment
+      equipment,
+      windowDays: settings.getBookingWindowDays()
     });
   } catch (err) {
     console.error('Create booking page error:', err);
@@ -526,17 +530,19 @@ app.post('/bookings', requireAuth, async (req, res) => {
       return res.redirect('/bookings/create');
     }
     
-    // Booking window for non-admins: the date must be at least 2 days out.
-    // Day-based, not exactly 48 hours: a booking 2 days later is fine even
-    // if it is less than 48 hours away.
+    // Booking window for non-admins: the date must be at least windowDays
+    // out. Day-based, not exactly N*24 hours: a booking N days later is
+    // fine even if it is less than N*24 hours away. The window is an admin
+    // setting (lib/settings.js), not hardcoded; 0 means same-day is fine.
+    const windowDays = settings.getBookingWindowDays();
     if (!res.locals.currentUser.isAdmin) {
       const todayWib = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
       const t = new Date(todayWib + 'T12:00:00');
-      t.setDate(t.getDate() + 2);
+      t.setDate(t.getDate() + windowDays);
       const pad2 = n => String(n).padStart(2, '0');
       const earliest = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
       if (date < earliest) {
-        setFlash(req, 'error', 'Booking harus dibuat minimal 2 hari sebelum acara');
+        setFlash(req, 'error', `Booking harus dibuat minimal ${windowDays} hari sebelum acara`);
         return res.redirect('/bookings/create');
       }
     }
@@ -786,7 +792,7 @@ app.post('/bookings/:id/cancel', requireAuth, async (req, res) => {
 app.use('/admin', (req, res, next) => {
   res.locals.layout = 'layouts/admin';
   const seg = (req.path || '/').split('/').filter(Boolean)[0] || '';
-  res.locals.active = { '': 'overview', calendar: 'calendar', bookings: 'bookings', rooms: 'rooms', users: 'users', departments: 'departments', equipment: 'equipment' }[seg] || '';
+  res.locals.active = { '': 'overview', calendar: 'calendar', bookings: 'bookings', rooms: 'rooms', users: 'users', departments: 'departments', equipment: 'equipment', settings: 'settings' }[seg] || '';
   next();
 });
 
@@ -1161,6 +1167,28 @@ app.get('/admin/users', requireAdmin, async (req, res) => {
     console.error('Admin users error:', err);
     res.status(500).send('Server error');
   }
+});
+
+// Admin settings — the booking window (how many days ahead a regular user
+// must book) lives in settings.json on disk, not hardcoded and not in the
+// database. Admins only.
+app.get('/admin/settings', requireAdmin, (req, res) => {
+  res.render('admin/settings', {
+    title: 'Pengaturan',
+    windowDays: settings.getBookingWindowDays(),
+    minDays: settings.MIN_DAYS,
+    maxDays: settings.MAX_DAYS
+  });
+});
+
+app.post('/admin/settings', requireAdmin, (req, res) => {
+  try {
+    const days = settings.saveBookingWindowDays(req.body.bookingWindowDays);
+    setFlash(req, 'success', `Pengaturan disimpan. Pengguna biasa sekarang harus booking minimal ${days} hari sebelum acara.`);
+  } catch (err) {
+    setFlash(req, 'error', err.message);
+  }
+  res.redirect('/admin/settings');
 });
 
 // ============================================================
