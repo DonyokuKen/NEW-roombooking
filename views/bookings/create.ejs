@@ -74,15 +74,58 @@
         <% if (users && users.length > 0) { %>
           <div class="form-group">
             <label class="form-label">Peserta Terkait (opsional)</label>
-            <% users.filter(u => !currentUser || String(u.id) !== String(currentUser.id)).slice(0, 50).forEach(u => { %>
-              <div class="mb-2">
-                <label class="d-flex align-items-center">
-                  <input type="checkbox" name="associated_users[]" value="<%= u.id %>">
-                  <span><%= u.namalengkap %> (<%= u.email %>)</span>
-                </label>
+            <div class="dropdown" id="participants-dropdown">
+              <button type="button" class="form-control dropdown-toggle" id="participants-toggle">
+                <span id="participants-label">Pilih peserta...</span>
+              </button>
+              <div class="dropdown-panel" id="participants-panel" hidden>
+                <input type="search" id="participants-search" class="form-control" placeholder="Cari nama atau email..." autocomplete="off">
+                <div class="dropdown-list">
+                  <% users.filter(u => !currentUser || String(u.id) !== String(currentUser.id)).slice(0, 50).forEach(u => { %>
+                    <label class="dropdown-item">
+                      <input type="checkbox" name="associated_users[]" value="<%= u.id %>">
+                      <span><%= u.namalengkap %> (<%= u.email %>)</span>
+                    </label>
+                  <% }) %>
+                </div>
+                <button type="button" class="btn btn-secondary w-100 mt-2" id="participants-done">Selesai</button>
               </div>
-            <% }) %>
+            </div>
           </div>
+          <script>
+          (function () {
+            var dd = document.getElementById('participants-dropdown');
+            if (!dd) return;
+            var toggle = document.getElementById('participants-toggle');
+            var panel = document.getElementById('participants-panel');
+            var search = document.getElementById('participants-search');
+            var label = document.getElementById('participants-label');
+            function updateLabel() {
+              var n = dd.querySelectorAll('input[name="associated_users[]"]:checked').length;
+              label.textContent = n === 0 ? 'Pilih peserta...' : n + ' peserta dipilih';
+            }
+            toggle.addEventListener('click', function (e) {
+              e.stopPropagation();
+              panel.hidden = !panel.hidden;
+              if (!panel.hidden) search.focus();
+            });
+            var doneBtn = document.getElementById('participants-done');
+            if (doneBtn) doneBtn.addEventListener('click', function () { panel.hidden = true; });
+            document.addEventListener('click', function (e) {
+              if (!dd.contains(e.target)) panel.hidden = true;
+            });
+            search.addEventListener('input', function () {
+              var q = search.value.trim().toLowerCase();
+              dd.querySelectorAll('.dropdown-item').forEach(function (item) {
+                item.style.display = item.textContent.toLowerCase().indexOf(q) !== -1 ? '' : 'none';
+              });
+            });
+            dd.querySelectorAll('input[name="associated_users[]"]').forEach(function (cb) {
+              cb.addEventListener('change', updateLabel);
+            });
+            updateLabel();
+          })();
+          </script>
         <% } %>
 
         <p class="text-muted mb-3">Catatan: booking dari pengguna biasa harus dibuat minimal 48 jam sebelum acara dan menunggu persetujuan admin.</p>

@@ -847,6 +847,70 @@ table tbody tr:last-child td {
   }
 }
 
+/* Dropdown (participants picker) */
+.dropdown {
+  position: relative;
+}
+
+.dropdown-toggle {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dropdown-toggle::after {
+  content: '▾';
+  color: var(--text-muted);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.dropdown-panel {
+  /* In-flow (not absolutely positioned) on purpose: an overlay panel
+     would cover the submit button below it and eat the tap */
+  margin-top: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+  padding: 10px;
+}
+
+.dropdown-panel[hidden] {
+  display: none;
+}
+
+.dropdown-list {
+  max-height: 260px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.dropdown-item:hover {
+  background: var(--surface-soft);
+}
+
+.dropdown-item input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-blue);
+  flex-shrink: 0;
+}
+
 /* Loading Spinner */
 .spinner {
   display: inline-block;
