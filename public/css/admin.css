@@ -732,6 +732,22 @@ body.admin-body {
   background-size: calc(100% / 16) 100%;
 }
 
+.cal-select {
+  position: absolute;
+  top: 9px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(47, 125, 246, 0.22);
+  border: 2px solid var(--adm-blue);
+  pointer-events: none;
+  display: none;
+  z-index: 3;
+}
+
+.cal-select.on {
+  display: block;
+}
+
 .cal-block {
   position: absolute;
   top: 9px;
@@ -898,6 +914,25 @@ body.admin-body {
   font-size: 16px;
   cursor: pointer;
   color: var(--adm-ink-2);
+}
+
+.cal-dur-btn {
+  border: 1px solid var(--adm-border);
+  background: #fff;
+  border-radius: 10px;
+  padding: 5px 11px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--adm-blue);
+  cursor: pointer;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+.cal-dur-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  color: var(--adm-muted);
 }
 
 .btn-approve {

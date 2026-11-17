@@ -65,6 +65,7 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
             <div class="cal-room-meta"><%= list.length === 0 ? 'Tidak ada booking' : list.length + ' booking' %></div>
           </div>
           <div class="cal-track" data-room-id="<%= room.id %>" data-room-name="<%= room.namaruangan %>">
+            <div class="cal-select"></div>
             <% if (showNow) { %><div class="cal-now" style="left: <%= nowLeft %>%"></div><% } %>
             <% list.forEach(b => { const p = blockPos(b); %>
               <button type="button" class="cal-block st-<%= b.status %>"
@@ -90,7 +91,7 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
     <span><i class="lg-A"></i>Dikonfirmasi</span>
     <span><i class="lg-P"></i>Menunggu persetujuan</span>
     <span><i class="lg-R"></i>Ditolak / dibatalkan</span>
-    <span>💡 Klik area kosong di jadwal untuk booking</span>
+    <span>💡 Seret di jadwal untuk pilih beberapa jam — klik untuk 1 jam</span>
     <span style="margin-left:auto"><%= bookings.length %> booking pada <%= label %></span>
   </div>
 </div>
@@ -127,6 +128,7 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
     <div class="m-sub" id="n-room">-</div>
     <div class="m-row"><span>Tanggal</span><span><%= label %></span></div>
     <div class="m-row"><span>Waktu</span><span id="n-time">-</span></div>
+    <div class="m-row"><span>Durasi</span><span><button type="button" class="cal-dur-btn" id="n-minus">− 30 mnt</button><button type="button" class="cal-dur-btn" id="n-plus">+ 30 mnt</button></span></div>
     <div class="m-actions">
       <a class="btn btn-primary" id="n-go" href="#" style="flex:1">Buat Booking →</a>
     </div>
@@ -163,36 +165,112 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
   });
 })();
 
-// Click an empty slot to start a booking there
+// Drag across one room's track to select several hours (the selection
+// stays in the room where the drag started — it can't cross rooms).
+// A plain click/tap still books 1 hour. Duration can also be adjusted
+// in the modal with the + / − 30 mnt buttons (handy on touch, where
+// dragging scrolls the timeline instead).
 (function () {
   var backdrop = document.getElementById('cal-new-modal');
   var closeBtn = document.getElementById('cal-new-close');
   var startHour = <%= startHour %>, endHour = <%= endHour %>;
+  var dayStart = startHour * 60, dayEnd = endHour * 60;
   var dateStr = '<%= date %>';
+  var sel = null; // { roomId, roomName, start, end }
+  var drag = null; // { track, anchor, startX, moved }
+  var openedAt = 0; // when the modal last opened (guards the synthetic click after a touch tap)
+
   function fmt(mins) {
     var h = Math.floor(mins / 60), m = mins % 60;
     return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
   }
+  function minsAt(track, clientX) {
+    var rect = track.getBoundingClientRect();
+    var frac = (clientX - rect.left) / rect.width;
+    frac = Math.max(0, Math.min(1, frac));
+    return Math.round((dayStart + frac * (dayEnd - dayStart)) / 30) * 30;
+  }
+  function showSel(track, a, b) {
+    var el = track.querySelector('.cal-select');
+    var lo = Math.min(a, b), hi = Math.max(a, b);
+    if (hi - lo < 30) hi = lo + 30;
+    el.style.left = ((lo - dayStart) / (dayEnd - dayStart) * 100) + '%';
+    el.style.width = ((hi - lo) / (dayEnd - dayStart) * 100) + '%';
+    el.classList.add('on');
+  }
+  function hideSel(track) {
+    track.querySelector('.cal-select').classList.remove('on');
+  }
+  function updateModal() {
+    document.getElementById('n-room').textContent = sel.roomName;
+    document.getElementById('n-time').textContent = fmt(sel.start) + ' - ' + fmt(sel.end);
+    document.getElementById('n-go').href = '/bookings/create?room_id=' + sel.roomId +
+      '&date=' + dateStr + '&timestart=' + fmt(sel.start) + '&timeend=' + fmt(sel.end);
+    document.getElementById('n-minus').disabled = (sel.end - sel.start <= 30);
+    document.getElementById('n-plus').disabled = (sel.end >= dayEnd);
+  }
+  function openModal() {
+    updateModal();
+    backdrop.classList.add('open');
+    openedAt = Date.now();
+  }
   function close() { backdrop.classList.remove('open'); }
   closeBtn.addEventListener('click', close);
-  backdrop.addEventListener('click', function (e) { if (e.target === backdrop) close(); });
+  backdrop.addEventListener('click', function (e) {
+    // A touch tap opens the modal on pointerup, then the browser fires a
+    // synthetic click at the same spot — it would land on the backdrop and
+    // close the modal instantly. Ignore backdrop clicks right after opening.
+    if (e.target === backdrop && Date.now() - openedAt > 400) close();
+  });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+  document.getElementById('n-minus').addEventListener('click', function () {
+    if (!sel) return;
+    sel.end = Math.max(sel.end - 30, sel.start + 30);
+    updateModal();
+  });
+  document.getElementById('n-plus').addEventListener('click', function () {
+    if (!sel) return;
+    sel.end = Math.min(sel.end + 30, dayEnd);
+    updateModal();
+  });
+
   document.querySelectorAll('.cal-track').forEach(function (track) {
-    track.addEventListener('click', function (e) {
+    track.addEventListener('pointerdown', function (e) {
       if (e.target.closest('.cal-block')) return;
-      var rect = track.getBoundingClientRect();
-      var frac = (e.clientX - rect.left) / rect.width;
-      frac = Math.max(0, Math.min(1, frac));
-      var mins = startHour * 60 + frac * (endHour - startHour) * 60;
-      var start = Math.round(mins / 30) * 30;
-      var end = Math.min(start + 60, endHour * 60);
-      if (end - start < 30) start = end - 30;
-      document.getElementById('n-room').textContent = track.dataset.roomName;
-      document.getElementById('n-time').textContent = fmt(start) + ' - ' + fmt(end);
-      document.getElementById('n-go').href = '/bookings/create?room_id=' + track.dataset.roomId +
-        '&date=' + dateStr + '&timestart=' + fmt(start) + '&timeend=' + fmt(end);
-      backdrop.classList.add('open');
+      drag = { track: track, anchor: minsAt(track, e.clientX), startX: e.clientX, moved: false };
+      if (e.pointerType === 'mouse' || e.pointerType === 'pen') {
+        try { track.setPointerCapture(e.pointerId); } catch (_) {}
+      }
     });
+    track.addEventListener('pointermove', function (e) {
+      if (!drag || drag.track !== track) return;
+      if (e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
+      if (Math.abs(e.clientX - drag.startX) < 6) return;
+      drag.moved = true;
+      showSel(track, drag.anchor, minsAt(track, e.clientX));
+    });
+    function finish(e, cancelled) {
+      if (!drag || drag.track !== track) return;
+      var d = drag; drag = null;
+      hideSel(track);
+      if (cancelled) return;
+      var start, end;
+      if (d.moved) {
+        var cur = minsAt(track, e.clientX);
+        start = Math.min(d.anchor, cur);
+        end = Math.max(d.anchor, cur);
+        if (end - start < 30) end = start + 30;
+        if (end > dayEnd) { end = dayEnd; start = Math.max(dayStart, end - 30); }
+      } else {
+        start = d.anchor;
+        end = Math.min(start + 60, dayEnd);
+        if (end - start < 30) start = end - 30;
+      }
+      sel = { roomId: track.dataset.roomId, roomName: track.dataset.roomName, start: start, end: end };
+      openModal();
+    }
+    track.addEventListener('pointerup', function (e) { finish(e, false); });
+    track.addEventListener('pointercancel', function (e) { finish(e, true); });
   });
 })();
 </script>
