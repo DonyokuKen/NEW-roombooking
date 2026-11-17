@@ -24,16 +24,15 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
 <div class="container">
   <h2 class="mt-4 mb-3">Kalender Ruangan</h2>
   <div class="cal-toolbar">
-    <form method="GET" action="/" class="cal-filter">
+    <div class="cal-filter">
       <span>🏢</span>
-      <select name="room" onchange="this.form.submit()">
+      <select name="room" id="room-filter">
         <option value="" <%= roomFilter === '' ? 'selected' : '' %>>Semua Ruangan</option>
         <% calRooms.forEach(r => { %>
           <option value="<%= r.id %>" <%= String(roomFilter) === String(r.id) ? 'selected' : '' %>><%= r.namaruangan %></option>
         <% }) %>
       </select>
-      <input type="hidden" name="date" value="<%= date %>">
-    </form>
+    </div>
 
     <div class="cal-datenav">
       <a href="/?date=<%= prevDate %><%= roomFilter ? '&room=' + roomFilter : '' %>" title="Hari sebelumnya">‹</a>
@@ -58,9 +57,8 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
 
         <% calRooms.forEach(room => {
           const list = bookingsByRoom[String(room.id)] || [];
-          if (roomFilter && String(roomFilter) !== String(room.id)) return;
         %>
-          <div class="cal-row">
+          <div class="cal-row" data-room-id="<%= room.id %>">
             <div class="cal-room-col cal-room">
               <div class="cal-room-name" title="<%= room.namaruangan %>"><%= shortRoom(room.namaruangan) %></div>
               <div class="cal-room-meta"><%= list.length === 0 ? 'Tidak ada booking' : list.length + ' booking' %></div>
@@ -95,6 +93,16 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
     var h = Math.floor(mins / 60), m = mins % 60;
     return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
   }
+  // Room filter works in place — no reload, no URL change.
+  var roomFilter = document.getElementById('room-filter');
+  function applyRoomFilter() {
+    var v = roomFilter.value;
+    document.querySelectorAll('.cal-row').forEach(function (row) {
+      row.style.display = (!v || row.dataset.roomId === v) ? '' : 'none';
+    });
+  }
+  roomFilter.addEventListener('change', applyRoomFilter);
+  applyRoomFilter(); // apply the server-rendered selection on load
   document.querySelectorAll('.cal-track').forEach(function (track) {
     track.addEventListener('click', function (e) {
       // Booked blocks are not clickable — no event detail for users.
