@@ -45,6 +45,10 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
     <% } %>
   </div>
 
+  <% if (!isAdmin) { %>
+    <p class="text-muted mb-3">💡 Booking untuk pengguna biasa minimal 2 hari sebelum acara. Tanggal paling cepat: <%= minLabel %>.</p>
+  <% } %>
+
   <div class="cal-card">
     <div class="cal-scroll">
       <div class="cal-inner">
@@ -100,11 +104,27 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
   </div>
 </div>
 
+<!-- Too-soon popup: regular users can only book 2 days out -->
+<div class="cal-modal-backdrop" id="cal-soon-modal">
+  <div class="cal-modal">
+    <button type="button" class="cal-modal-close" id="cal-soon-close">✕</button>
+    <h3>Belum bisa booking</h3>
+    <div class="m-sub">Booking untuk pengguna biasa minimal 2 hari sebelum acara.</div>
+    <div class="m-row"><span>Tanggal dipilih</span><span><%= label %></span></div>
+    <div class="m-row"><span>Paling cepat</span><span><%= minLabel %></span></div>
+    <div class="m-actions">
+      <button type="button" class="btn btn-primary" id="soon-ok" style="flex:1">OK, mengerti</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
   var startHour = <%= startHour %>, endHour = <%= endHour %>;
   var dayStart = startHour * 60, dayEnd = endHour * 60;
   var dateStr = '<%= date %>';
+  var isAdmin = <%= isAdmin ? 'true' : 'false' %>;
+  var minDate = '<%= minDate %>';
   function fmt(mins) {
     var h = Math.floor(mins / 60), m = mins % 60;
     return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
@@ -177,6 +197,22 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
   document.getElementById('n-cancel').addEventListener('click', closeModal);
 
+  // Too-soon popup: same open/close pattern as the booking popup,
+  // including the guard against the synthetic click after a touch tap.
+  var soonBackdrop = document.getElementById('cal-soon-modal');
+  var soonOpenedAt = 0;
+  function openSoonModal() {
+    soonBackdrop.classList.add('open');
+    soonOpenedAt = Date.now();
+  }
+  function closeSoonModal() { soonBackdrop.classList.remove('open'); }
+  document.getElementById('cal-soon-close').addEventListener('click', closeSoonModal);
+  document.getElementById('soon-ok').addEventListener('click', closeSoonModal);
+  soonBackdrop.addEventListener('click', function (e) {
+    if (e.target === soonBackdrop && Date.now() - soonOpenedAt > 400) closeSoonModal();
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSoonModal(); });
+
   document.querySelectorAll('.cal-track').forEach(function (track) {
     track.addEventListener('pointerdown', function (e) {
       // Booked blocks are not clickable — no event detail for users.
@@ -200,6 +236,12 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
       var d = drag; drag = null;
       hideSel(track);
       if (cancelled) return;
+      // Regular users can only pick slots 2 days out: block the pick with
+      // an explanation instead of opening the booking popup.
+      if (!isAdmin && dateStr < minDate) {
+        openSoonModal();
+        return;
+      }
       // Popup already open + tap (not drag) on the same room: extend the
       // grey range with the tapped hour instead of starting over.
       if (!d.moved && sel && sel.track === track && backdrop.classList.contains('open')) {
