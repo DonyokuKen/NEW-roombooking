@@ -22,11 +22,15 @@
           </div>
           <div class="form-group">
             <label class="form-label" for="timestart">Waktu Mulai</label>
-            <input type="time" name="timestart" id="timestart" class="form-control" value="<%= (typeof prefill !== 'undefined' && prefill.timestart) || '' %>" required>
+            <select name="timestart" id="timestart" class="form-control" data-prefill="<%= (typeof prefill !== 'undefined' && prefill.timestart) || '' %>" required>
+              <option value="">-- Pilih --</option>
+            </select>
           </div>
           <div class="form-group">
             <label class="form-label" for="timeend">Waktu Selesai</label>
-            <input type="time" name="timeend" id="timeend" class="form-control" value="<%= (typeof prefill !== 'undefined' && prefill.timeend) || '' %>" required>
+            <select name="timeend" id="timeend" class="form-control" data-prefill="<%= (typeof prefill !== 'undefined' && prefill.timeend) || '' %>" required>
+              <option value="">-- Pilih --</option>
+            </select>
           </div>
         </div>
         <div class="form-group">

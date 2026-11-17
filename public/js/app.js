@@ -114,6 +114,109 @@ if (document.getElementById('booking-form')) {
   if (timestartSelect) timestartSelect.addEventListener('change', checkConflict);
   if (timeendSelect) timeendSelect.addEventListener('change', checkConflict);
 
+  // Time dropdowns: booked times are greyed out, not selectable. A native
+  // <input type="time"> cannot disable individual times, so the form uses
+  // 30-minute dropdowns (07:00-23:00, the same grid as the calendar).
+  // A slot is offered only when a full 30-minute pick fits inside a free
+  // stretch — so odd booking boundaries (19:15, 20:45, …) are honoured too.
+  const DAY_START = 420, DAY_END = 1380; // 07:00-23:00, in minutes
+  let bookedRanges = []; // [{start, end}] in minutes, for the room + date
+  let bookedSeq = 0;
+
+  function toMin(hhmm) {
+    const p = String(hhmm || '').split(':');
+    return (+p[0] || 0) * 60 + (+p[1] || 0);
+  }
+  function fmtMin(m) {
+    return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+  }
+  // Maximal free interval containing m, or null when m sits inside a booking.
+  function freeWindowAt(m) {
+    let lo = DAY_START, hi = DAY_END;
+    for (const r of bookedRanges) {
+      if (m >= r.start && m < r.end) return null;
+      if (r.end <= m && r.end > lo) lo = r.end;
+      if (r.start >= m && r.start < hi) hi = r.start;
+    }
+    return [lo, hi];
+  }
+  function fillSelect(sel, values, isDisabled, keep) {
+    sel.innerHTML = '<option value="">-- Pilih --</option>';
+    values.forEach(function (m) {
+      const opt = document.createElement('option');
+      opt.value = fmtMin(m);
+      opt.textContent = fmtMin(m);
+      opt.disabled = isDisabled(m);
+      sel.appendChild(opt);
+    });
+    // Keep the current pick when it is still offered and selectable; a pick
+    // that is now greyed out clears itself instead of staying selected.
+    if (keep) {
+      const ok = [...sel.options].some(function (o) { return o.value === keep && !o.disabled; });
+      if (ok) sel.value = keep;
+    }
+  }
+  function rebuildEndSelect() {
+    if (!timeendSelect) return;
+    const startVal = timestartSelect ? timestartSelect.value : '';
+    const keep = timeendSelect.value || timeendSelect.dataset.prefill || '';
+    const ends = [];
+    for (let m = DAY_START + 30; m <= DAY_END; m += 30) ends.push(m);
+    fillSelect(timeendSelect, ends, function (m) {
+      if (startVal) {
+        const w = freeWindowAt(toMin(startVal));
+        return !w || m <= toMin(startVal) || m > w[1];
+      }
+      // No start picked yet: an end inside a booking can never be valid.
+      return bookedRanges.some(function (r) { return m > r.start && m < r.end; });
+    }, keep);
+  }
+  function rebuildTimeSelects() {
+    if (!timestartSelect) return;
+    const keep = timestartSelect.value || timestartSelect.dataset.prefill || '';
+    const starts = [];
+    for (let m = DAY_START; m + 30 <= DAY_END; m += 30) starts.push(m);
+    fillSelect(timestartSelect, starts, function (m) {
+      const w = freeWindowAt(m);
+      return !w || m + 30 > w[1];
+    }, keep);
+    rebuildEndSelect();
+  }
+  async function refreshBooked() {
+    const roomId = roomSelect ? roomSelect.value : '';
+    const date = dateInput ? dateInput.value : '';
+    const bookingId = document.getElementById('booking_id') ? document.getElementById('booking_id').value : '';
+    bookedRanges = [];
+    if (!roomId || !date) { rebuildTimeSelects(); return; }
+    const seq = ++bookedSeq;
+    try {
+      const url = '/api/booked-times?room=' + encodeURIComponent(roomId) +
+        '&date=' + encodeURIComponent(date) +
+        (bookingId ? '&exclude=' + encodeURIComponent(bookingId) : '');
+      const response = await fetch(url);
+      const data = await response.json();
+      // A newer load has already started: this reply is stale, ignore it.
+      if (seq !== bookedSeq) return;
+      if (data.success) {
+        bookedRanges = (data.booked || []).map(function (b) {
+          return { start: toMin(b.timestart), end: toMin(b.timeend) };
+        });
+      }
+    } catch (err) {
+      console.error('Error loading booked times:', err);
+      // Load failed: leave every slot enabled — the conflict check and the
+      // server still catch a booked time, so nothing bad gets through.
+    }
+    rebuildTimeSelects();
+  }
+
+  if (roomSelect) roomSelect.addEventListener('change', refreshBooked);
+  if (dateInput) dateInput.addEventListener('change', refreshBooked);
+  if (timestartSelect) timestartSelect.addEventListener('change', rebuildEndSelect);
+  // Build the dropdowns now: a prefilled room/date/time (from the calendar,
+  // or the booking being edited) gets its slots on the first load.
+  refreshBooked();
+
   // The calendar prefills room/date/time, so check right away: a prefilled
   // range that already overlaps must warn before the user touches anything.
   checkConflict();

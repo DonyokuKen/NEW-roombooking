@@ -1201,6 +1201,20 @@ app.get('/api/kelengkapan', async (req, res) => {
   }
 });
 
+// API: Booked times for a room on a date (to grey out taken slots)
+app.get('/api/booked-times', async (req, res) => {
+  try {
+    const { room, date, exclude } = req.query;
+    if (!room || !/^\d{4}-\d{2}-\d{2}$/.test(date || '')) {
+      return res.status(400).json({ success: false, error: 'Room and date required' });
+    }
+    const booked = await db.getBookedRanges(room, date, exclude || null);
+    res.json({ success: true, booked });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 // API: Check booking conflict
 app.post('/api/check-conflict', async (req, res) => {
   try {
