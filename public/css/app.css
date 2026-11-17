@@ -1174,6 +1174,13 @@ table tbody tr:last-child td {
 
 .cal-scroll {
   overflow-x: auto;
+  /* The calendar is its own scroll pane, so the hour header can stick to
+     its top while scrolling through the rooms. A sticky header cannot pin
+     to the page from inside a horizontally-scrolling container, so the
+     pane scrolls instead of the page. */
+  overflow-y: auto;
+  max-height: calc(100vh - 190px);
+  max-height: calc(100dvh - 190px);
   -webkit-overflow-scrolling: touch;
 }
 
@@ -1184,6 +1191,16 @@ table tbody tr:last-child td {
 .cal-head,
 .cal-row {
   display: flex;
+}
+
+/* Hours stay visible while scrolling down the rooms. Solid background so
+   rows sliding underneath don't show through. */
+.cal-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
 }
 
 .cal-room-col {
