@@ -36,7 +36,10 @@
 <h2 class="adm-section-title">Booking Menunggu Persetujuan</h2>
 <div class="adm-panel">
   <% if (pendingBookings && pendingBookings.length > 0) { %>
-    <% pendingBookings.forEach(booking => { %>
+    <% pendingBookings.forEach(booking => {
+      const kelIds = String(booking.kelengkapanruangan || '').split(/[;,]/).map(x => x.trim()).filter(Boolean);
+      const kelNames = (equipment || []).filter(item => kelIds.includes(String(item.id))).map(item => item.NamaKelengkapan);
+    %>
       <div class="adm-row-item">
         <div class="adm-date-badge">
           <div class="d"><%= new Date(booking.date).getDate() %></div>
@@ -49,8 +52,21 @@
             <span>⏰ <%= booking.timestart %> - <%= booking.timeend %></span>
             <span>👤 <%= booking.namalengkap || '-' %></span>
           </div>
+          <% if (kelNames.length > 0) { %>
+            <div class="adm-row-meta"><span>🔧 <%= kelNames.join(', ') %></span></div>
+          <% } %>
         </div>
         <span class="badge badge-pending">Tertunda</span>
+        <div class="adm-row-actions">
+          <form method="POST" action="/admin/bookings/<%= booking.id %>/approve" onsubmit="return confirm('Setujui booking ini?')">
+            <input type="hidden" name="next" value="/admin">
+            <button type="submit" class="btn btn-success btn-sm">Setujui</button>
+          </form>
+          <form method="POST" action="/admin/bookings/<%= booking.id %>/reject" onsubmit="return confirm('Tolak booking ini?')">
+            <input type="hidden" name="next" value="/admin">
+            <button type="submit" class="btn btn-danger btn-sm">Tolak</button>
+          </form>
+        </div>
       </div>
     <% }) %>
   <% } else { %>

@@ -524,6 +524,12 @@ body.admin-body {
   flex-wrap: wrap;
 }
 
+.adm-row-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .adm-empty {
   padding: 18px 0;
   color: var(--adm-muted);

@@ -109,9 +109,23 @@ function setFlash(req, type, message) {
 function requireAuth(req, res, next) {
   if (!res.locals.currentUser) {
     setFlash(req, 'error', 'Silakan login terlebih dahulu');
+    // Remember where they were headed, so login can send them back there
+    // (e.g. the calendar booking form, or My Bookings). GET only: a POST
+    // target can't be replayed after login.
+    if (req.method === 'GET') {
+      req.session.returnTo = req.originalUrl;
+    }
     return res.redirect('/login');
   }
   next();
+}
+
+// Where to send the user after login/register: the page they were headed
+// to, when it is a safe same-site path. Consumed once.
+function consumeReturnTo(req) {
+  const dest = req.session.returnTo;
+  delete req.session.returnTo;
+  return (typeof dest === 'string' && dest.startsWith('/') && !dest.startsWith('//')) ? dest : null;
 }
 
 function requireAdmin(req, res, next) {
@@ -137,24 +151,32 @@ app.get('/', async (req, res) => {
     // Only confirmed/pending bookings block a slot; rejected/cancelled do not.
     const now = new Date();
     const pad = n => String(n).padStart(2, '0');
-    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-    const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : todayStr;
-    const shift = days => {
-      const d = new Date(date + 'T12:00:00');
+    const fmtDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const shiftDate = (dateStr, days) => {
+      const d = new Date(dateStr + 'T12:00:00');
       d.setDate(d.getDate() + days);
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      return fmtDate(d);
     };
+    const todayStr = fmtDate(now);
+    const isAdmin = !!(res.locals.currentUser && res.locals.currentUser.isAdmin);
+    // Regular users can only book 2 days out, so their calendar opens on
+    // the first bookable day; admins open on today. minDate is the earliest
+    // date a regular user may pick a slot on (the popup enforces it).
+    const minDate = isAdmin ? todayStr : shiftDate(todayStr, 2);
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : minDate;
+    const shift = days => shiftDate(date, days);
     const roomFilter = req.query.room || '';
     const calRooms = await db.getAllRooms({ status: 'A' });
     const allBookings = await db.getAllBookings({ date, limit: 1000, offset: 0 });
     const calBookings = allBookings.filter(b => b.status === 'P' || b.status === 'A');
     const label = new Date(date + 'T12:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const minLabel = new Date(minDate + 'T12:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
     res.render('index', {
       title: 'Dashboard - RoomBooking',
       date, prevDate: shift(-1), nextDate: shift(1), todayStr,
       label, calRooms, calBookings, roomFilter,
-      startHour: 7, endHour: 23
+      startHour: 7, endHour: 23, minDate, minLabel, isAdmin
     });
   } catch (err) {
     console.error('Dashboard error:', err);
@@ -264,7 +286,11 @@ app.post('/login', async (req, res) => {
     
     req.session.userId = user.id;
     setFlash(req, 'success', `Selamat datang, ${user.namalengkap}!`);
-    
+
+    const dest = consumeReturnTo(req);
+    if (dest) {
+      return res.redirect(dest);
+    }
     if (db.isAdminUser(user)) {
       return res.redirect('/admin');
     }
@@ -335,7 +361,8 @@ app.post('/register', async (req, res) => {
     
     req.session.userId = userId;
     setFlash(req, 'success', 'Registrasi berhasil! Selamat datang!');
-    res.redirect('/bookings');
+    const dest = consumeReturnTo(req);
+    res.redirect(dest || '/bookings');
   } catch (err) {
     console.error('Register error:', err);
     setFlash(req, 'error', 'Terjadi kesalahan sistem');
@@ -499,11 +526,17 @@ app.post('/bookings', requireAuth, async (req, res) => {
       return res.redirect('/bookings/create');
     }
     
-    // 48 hour rule for non-admin
+    // Booking window for non-admins: the date must be at least 2 days out.
+    // Day-based, not exactly 48 hours: a booking 2 days later is fine even
+    // if it is less than 48 hours away.
     if (!res.locals.currentUser.isAdmin) {
-      const hoursDiff = (bookingDate - now) / (1000 * 60 * 60);
-      if (hoursDiff < 48) {
-        setFlash(req, 'error', 'Booking harus dibuat minimal 48 jam sebelum acara');
+      const todayWib = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+      const t = new Date(todayWib + 'T12:00:00');
+      t.setDate(t.getDate() + 2);
+      const pad2 = n => String(n).padStart(2, '0');
+      const earliest = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
+      if (date < earliest) {
+        setFlash(req, 'error', 'Booking harus dibuat minimal 2 hari sebelum acara');
         return res.redirect('/bookings/create');
       }
     }
@@ -769,6 +802,11 @@ app.get('/admin', requireAdmin, async (req, res) => {
 
     const pendingBookings = await db.getAllBookings({ status: 'P', limit: 10 });
     const todayEvents = await db.getTodayEvents();
+    // Equipment names for the pending list (kelengkapan shows inline, no
+    // need to open the detail page). Same lookup as the detail page.
+    const equipment = pendingBookings.some(b => b.kelengkapanruangan)
+      ? await db.getAllKelengkapan({ status: 'A' })
+      : [];
 
     res.render('admin/dashboard', {
       title: 'Ringkasan',
@@ -779,7 +817,8 @@ app.get('/admin', requireAdmin, async (req, res) => {
         departments: totalDepartments
       },
       pendingBookings,
-      todayEvents
+      todayEvents,
+      equipment
     });
   } catch (err) {
     console.error('Admin dashboard error:', err);
@@ -872,6 +911,12 @@ app.post('/admin/bookings/:id/approve', requireAdmin, async (req, res) => {
     
     await db.updateBooking(req.params.id, { status: 'A' });
     setFlash(req, 'success', 'Booking berhasil disetujui');
+    // Acting from the dashboard list sends the admin back there (forms on
+    // that page post next=/admin); otherwise fall through to the detail page.
+    const next = req.body.next;
+    if (typeof next === 'string' && next.startsWith('/') && !next.startsWith('//')) {
+      return res.redirect(next);
+    }
     res.redirect('/admin/bookings/' + req.params.id);
   } catch (err) {
     console.error('Approve booking error:', err);
@@ -896,6 +941,10 @@ app.post('/admin/bookings/:id/reject', requireAdmin, async (req, res) => {
     
     await db.updateBooking(req.params.id, { status: 'R' });
     setFlash(req, 'success', 'Booking berhasil ditolak');
+    const next = req.body.next;
+    if (typeof next === 'string' && next.startsWith('/') && !next.startsWith('//')) {
+      return res.redirect(next);
+    }
     res.redirect('/admin/bookings/' + req.params.id);
   } catch (err) {
     console.error('Reject booking error:', err);
