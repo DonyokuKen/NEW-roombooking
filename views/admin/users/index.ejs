@@ -24,6 +24,7 @@ const qs = p => `/admin/users?page=${p}&search=${encodeURIComponent(search || ''
               <th>Email</th>
               <th>No. Telepon</th>
               <th>Jenis Kelamin</th>
+              <th>Departemen</th>
               <th>Peran</th>
               <th>Status</th>
             </tr>
@@ -35,6 +36,7 @@ const qs = p => `/admin/users?page=${p}&search=${encodeURIComponent(search || ''
                 <td><%= user.email %></td>
                 <td><%= user.notelp || '-' %></td>
                 <td><%= user.gender === 'P' ? 'Perempuan' : 'Laki-laki' %></td>
+                <td><%= user.dept_name || user.dept || '-' %></td>
                 <td><%= roleLabel(user.roles) %></td>
                 <td><span class="badge badge-<%= user.userstatus === 'A' ? 'confirmed' : 'cancelled' %>"><%= user.userstatus === 'A' ? 'Aktif' : 'Nonaktif' %></span></td>
               </tr>
