@@ -262,8 +262,8 @@ async function fetchPendingNotifications() {
 
 function startNotificationPolling() {
   if (notificationPollingStarted) return;
-  // Only for logged-in users — the Notifikasi nav link exists only then.
-  if (!document.querySelector('a[href="/notifications"]')) return;
+  // Only for logged-in users — the bell button exists only then.
+  if (!document.querySelector('#notif-bell')) return;
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   notificationPollingStarted = true;
   fetchPendingNotifications();
@@ -295,4 +295,57 @@ window.addEventListener('load', () => {
   if (btn && (!('Notification' in window) || Notification.permission === 'granted')) {
     btn.style.display = 'none';
   }
+  // Bell popup: ask to allow notifications without leaving the page.
+  const bell = document.getElementById('notif-bell');
+  if (bell) bell.addEventListener('click', openNotifPopup);
+  const closeBtn = document.getElementById('notif-modal-close');
+  if (closeBtn) closeBtn.addEventListener('click', closeNotifPopup);
+  const laterBtn = document.getElementById('notif-modal-later');
+  if (laterBtn) laterBtn.addEventListener('click', closeNotifPopup);
+  const modal = document.getElementById('notif-modal');
+  if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeNotifPopup(); });
+  const allowBtn = document.getElementById('notif-modal-allow');
+  if (allowBtn) allowBtn.addEventListener('click', async () => {
+    if (!('Notification' in window)) return;
+    const result = await Notification.requestPermission();
+    if (result === 'granted') startNotificationPolling();
+    openNotifPopup(); // refresh the popup to the new state
+  });
 });
+
+// Bell popup content depends on the current permission state.
+function openNotifPopup() {
+  const modal = document.getElementById('notif-modal');
+  if (!modal) return;
+  const title = document.getElementById('notif-modal-title');
+  const text = document.getElementById('notif-modal-text');
+  const allowBtn = document.getElementById('notif-modal-allow');
+  const laterBtn = document.getElementById('notif-modal-later');
+  if (!('Notification' in window)) {
+    title.textContent = 'Notifikasi browser';
+    text.textContent = 'Browser ini tidak mendukung notifikasi.';
+    allowBtn.style.display = 'none';
+    laterBtn.textContent = 'Tutup';
+  } else if (Notification.permission === 'granted') {
+    title.textContent = 'Notifikasi aktif';
+    text.textContent = 'Notifikasi browser sudah aktif di perangkat ini. Pengingat booking akan muncul otomatis.';
+    allowBtn.style.display = 'none';
+    laterBtn.textContent = 'Tutup';
+  } else if (Notification.permission === 'denied') {
+    title.textContent = 'Notifikasi diblokir';
+    text.textContent = 'Notifikasi diblokir di pengaturan browser. Aktifkan lewat pengaturan browser kalau mau pengingat muncul.';
+    allowBtn.style.display = 'none';
+    laterBtn.textContent = 'Tutup';
+  } else {
+    title.textContent = 'Izinkan notifikasi?';
+    text.textContent = 'Izinkan notifikasi supaya pengingat booking muncul di perangkat ini.';
+    allowBtn.style.display = '';
+    laterBtn.textContent = 'Nanti saja';
+  }
+  modal.classList.add('open');
+}
+
+function closeNotifPopup() {
+  const modal = document.getElementById('notif-modal');
+  if (modal) modal.classList.remove('open');
+}

@@ -28,7 +28,7 @@
         <li><a href="/rooms" class="<%= typeof active !== 'undefined' && active === 'rooms' ? 'active' : '' %>">Ruangan</a></li>
         <% if (typeof currentUser !== 'undefined' && currentUser) { %>
           <li><a href="/bookings" class="<%= typeof active !== 'undefined' && active === 'bookings' ? 'active' : '' %>">Booking Saya</a></li>
-          <li><a href="/notifications">🔔 Notifikasi<% if (typeof notifCount !== 'undefined' && notifCount > 0) { %><span class="nav-count"><%= notifCount %></span><% } %></a></li>
+          <li><button type="button" id="notif-bell" class="nav-bell">🔔 Notifikasi<% if (typeof notifCount !== 'undefined' && notifCount > 0) { %><span class="nav-count"><%= notifCount %></span><% } %></button></li>
           <% if (currentUser.isAdmin) { %>
             <li><a href="/admin" class="<%= typeof active !== 'undefined' && active === 'admin' ? 'active' : '' %>">Admin</a></li>
           <% } %>
@@ -70,6 +70,22 @@
       <p>&copy; <%= new Date().getFullYear() %> RoomBooking System. Built with ❤️</p>
     </div>
   </footer>
+
+  <!-- Notification permission popup (bell) — no navigation, no new tab -->
+  <div class="notif-modal-backdrop" id="notif-modal">
+    <div class="notif-modal">
+      <button type="button" class="notif-modal-close" id="notif-modal-close">✕</button>
+      <h3 id="notif-modal-title">Izinkan notifikasi?</h3>
+      <p id="notif-modal-text">Izinkan notifikasi supaya pengingat booking muncul di perangkat ini.</p>
+      <div class="notif-actions">
+        <button type="button" class="btn btn-secondary" id="notif-modal-later" style="flex:1">Nanti saja</button>
+        <button type="button" class="btn btn-primary" id="notif-modal-allow" style="flex:1">Izinkan</button>
+      </div>
+      <div class="notif-actions">
+        <a class="btn btn-secondary" href="/notifications" style="flex:1">Lihat daftar notifikasi →</a>
+      </div>
+    </div>
+  </div>
 
   <script src="/js/app.js"></script>
 </body>

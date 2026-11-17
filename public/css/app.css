@@ -949,3 +949,86 @@ table tbody tr:last-child td {
   font-size: 1rem;
   margin-bottom: 1.5rem;
 }
+
+/* Bell button in the navbar (opens the notification popup, no navigation) */
+.nav-bell {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--text-ink-2);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.nav-bell:hover {
+  color: var(--accent-blue);
+}
+
+/* Notification permission popup (bell) — no navigation, no new tab */
+.notif-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 26, 38, 0.45);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+
+.notif-modal-backdrop.open {
+  display: flex;
+}
+
+.notif-modal {
+  background: var(--surface);
+  border-radius: 22px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+  width: min(440px, 100%);
+  padding: 22px;
+  max-height: 86vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.notif-modal h3 {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0 0 8px;
+  padding-right: 28px;
+}
+
+.notif-modal p {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.notif-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.notif-actions .btn {
+  flex: 1;
+  border-radius: 12px;
+  text-align: center;
+  justify-content: center;
+}
+
+.notif-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--surface-soft);
+  font-size: 16px;
+  cursor: pointer;
+}
