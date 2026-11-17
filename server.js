@@ -314,7 +314,13 @@ app.post('/register', async (req, res) => {
     
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-    
+
+    // Default department: first ACTIVE one. The old hardcoded '1'
+    // (Building Management) is status 'D' in the live DB, so new
+    // signups were all filed under a deleted department.
+    const activeDepts = await db.getAllDepartments({ status: 'A' });
+    const defaultDept = activeDepts.length ? String(activeDepts[0].id) : '1';
+
     // Create user
     const userId = await db.createUser({
       namalengkap,
@@ -323,7 +329,7 @@ app.post('/register', async (req, res) => {
       notelp,
       alamat: alamat || '-',
       gender: gender || 'L',
-      dept: '1', // Default department
+      dept: defaultDept, // First active department
       roles: 'U'
     });
     
