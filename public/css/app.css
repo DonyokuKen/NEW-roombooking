@@ -45,7 +45,16 @@ body {
   line-height: 1.6;
   font-size: 15px;
   min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
   overflow-x: hidden;
+}
+
+/* Sticky footer: main grows to fill short pages so the footer sits
+   at the bottom of the viewport instead of floating mid-page. */
+main {
+  flex: 1;
 }
 
 h1, h2, h3, h4, h5, h6 {
