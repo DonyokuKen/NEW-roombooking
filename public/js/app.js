@@ -199,3 +199,100 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
+
+// Browser notifications: the old Laravel loop, restored. While logged
+// in, poll for pending reminders every 60s and show each one as a
+// browser notification, then mark it delivered. No push token or
+// server is involved — the app itself fetches and shows them.
+// Polling only runs when permission is already granted; the button on
+// the Notifikasi page asks for it (needs a tap).
+const POLLING_INTERVAL_MS = 60000;
+let notificationPollingStarted = false;
+
+async function showBrowserNotification(notification) {
+  const title = notification.title || 'Notifikasi';
+  const options = {
+    body: notification.body || '',
+    icon: '/icons/icon-192.png',
+    tag: `push-notification-${notification.id}`,
+    renotify: true,
+    data: { id: notification.id }
+  };
+
+  let shown = false;
+  try {
+    if ('serviceWorker' in navigator) {
+      const registration = await navigator.serviceWorker.ready;
+      if (registration && registration.showNotification) {
+        await registration.showNotification(title, options);
+        shown = true;
+      }
+    }
+    if (!shown && 'Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, options);
+      shown = true;
+    }
+  } catch (err) {
+    console.error('Notification display failed:', err);
+  }
+
+  if (shown) {
+    try {
+      await fetch(`/api/notifications/${notification.id}/deliver`, { method: 'PUT' });
+    } catch (err) {
+      console.error('Failed to mark notification delivered:', err);
+    }
+  }
+}
+
+async function fetchPendingNotifications() {
+  try {
+    const response = await fetch('/api/notifications/pending');
+    if (!response.ok) return;
+    const payload = await response.json();
+    if (Array.isArray(payload.notifications) && payload.notifications.length > 0) {
+      for (const n of payload.notifications) {
+        await showBrowserNotification(n);
+      }
+    }
+  } catch (err) {
+    console.error('Failed to fetch pending notifications:', err);
+  }
+}
+
+function startNotificationPolling() {
+  if (notificationPollingStarted) return;
+  // Only for logged-in users — the Notifikasi nav link exists only then.
+  if (!document.querySelector('a[href="/notifications"]')) return;
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  notificationPollingStarted = true;
+  fetchPendingNotifications();
+  setInterval(fetchPendingNotifications, POLLING_INTERVAL_MS);
+}
+
+// Called by the "Aktifkan notifikasi browser" button on /notifications.
+window.enableBrowserNotifications = async function () {
+  if (!('Notification' in window)) {
+    alert('Browser ini tidak mendukung notifikasi.');
+    return;
+  }
+  const result = await Notification.requestPermission();
+  if (result === 'granted') {
+    startNotificationPolling();
+    const btn = document.getElementById('enable-notifications-btn');
+    if (btn) btn.style.display = 'none';
+    const hint = document.getElementById('enable-notifications-hint');
+    if (hint) hint.textContent = 'Notifikasi browser aktif. Pengingat akan muncul di HP kamu.';
+  } else {
+    alert('Izin notifikasi belum diberikan. Aktifkan lewat pengaturan browser kalau mau pengingat muncul.');
+  }
+};
+
+window.addEventListener('load', () => {
+  startNotificationPolling();
+  // Hide the enable button when it is not needed.
+  const btn = document.getElementById('enable-notifications-btn');
+  if (btn && (!('Notification' in window) || Notification.permission === 'granted')) {
+    btn.style.display = 'none';
+  }
+});

@@ -381,6 +381,30 @@ app.get('/notifications', requireAuth, async (req, res) => {
   }
 });
 
+// Polling API for browser notifications (the old Laravel loop, same
+// shape): the installed app fetches its pending rows, shows each one
+// as a browser notification, then marks it delivered. Newest first.
+app.get('/api/notifications/pending', requireAuth, async (req, res) => {
+  try {
+    const notifications = await notify.getPendingNotifications(res.locals.currentUser.id);
+    res.json({ notifications });
+  } catch (err) {
+    console.error('Pending notifications error:', err);
+    res.status(500).json({ notifications: [] });
+  }
+});
+
+app.put('/api/notifications/:id/deliver', requireAuth, async (req, res) => {
+  try {
+    const ok = await notify.markNotificationDelivered(req.params.id, res.locals.currentUser.id);
+    if (!ok) return res.status(404).json({ success: false });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Mark delivered error:', err);
+    res.status(500).json({ success: false });
+  }
+});
+
 // Create booking page
 app.get('/bookings/create', requireAuth, async (req, res) => {
   try {
