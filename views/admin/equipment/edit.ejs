@@ -1,0 +1,27 @@
+<div class="container" style="max-width: 640px; padding: 2.5rem 1.5rem;">
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Edit Kelengkapan</h2>
+    </div>
+    <div class="card-body">
+      <p class="text-muted mb-4">Ruangan: <%= item.namaruangan || 'Tanpa Ruangan' %> · id <%= item.id %></p>
+      <form method="POST" action="/admin/equipment/<%= item.id %>/edit">
+        <div class="form-group">
+          <label class="form-label" for="NamaKelengkapan">Nama Kelengkapan</label>
+          <input type="text" name="NamaKelengkapan" id="NamaKelengkapan" class="form-control" value="<%= item.NamaKelengkapan %>" required autofocus>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="status">Status</label>
+          <select name="status" id="status" class="form-control">
+            <option value="A" <%= item.status === 'A' ? 'selected' : '' %>>Tersedia</option>
+            <option value="N" <%= item.status === 'N' ? 'selected' : '' %>>Tidak Tersedia</option>
+          </select>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+          <a href="/admin/equipment" class="btn btn-secondary">Batal</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

@@ -11,6 +11,10 @@ const roleLabel = r => ({ U: 'Pengguna', M: 'Manager', SU: 'Super Admin' }[r] ||
     <% if (department.deskripsi) { %> · <%= department.deskripsi %><% } %>
   </p>
 
+  <form method="POST" action="/admin/departments/<%= department.id %>/delete" style="margin-bottom: 1rem;" onsubmit="return confirm('Hapus departemen &quot;<%= department.namadepartment.replace(/'/g, "\\'") %>&quot;? <%= members.length %> anggota dan <%= bookingCount %> booking TIDAK dihapus - referensi departemen mereka dibiarkan apa adanya.');">
+    <button type="submit" class="btn btn-danger">Hapus Departemen</button>
+  </form>
+
   <% if (members && members.length > 0) { %>
     <div class="card">
       <div class="table-responsive">

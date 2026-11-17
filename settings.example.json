@@ -1,1 +1,1 @@
-{"bookingWindowDays":2}
+{"bookingWindowDays":2,"emailResetEnabled":false,"smtpHost":"","smtpPass":"","smtpPort":587,"smtpUser":""}

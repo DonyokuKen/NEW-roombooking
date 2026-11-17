@@ -18,4 +18,44 @@
       </form>
     </div>
   </div>
+
+  <div class="card" style="margin-top: 1.5rem;">
+    <div class="card-header">
+      <h2 class="card-title">Reset Password lewat Email</h2>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="/admin/settings">
+        <input type="hidden" name="bookingWindowDays" value="<%= windowDays %>">
+        <div class="form-group">
+          <label class="form-label" style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="checkbox" name="emailResetEnabled" <%= emailResetEnabled ? 'checked' : '' %>>
+            Reset password lewat email
+          </label>
+          <p class="text-muted">Saat aktif, halaman login menampilkan tautan “Lupa password?” dan pengguna bisa meminta tautan reset yang dikirim lewat email (berlaku 60 menit). Saat tidak aktif, halaman login menampilkan “Contact administrator to reset password”.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="smtpHost">SMTP host</label>
+          <input type="text" name="smtpHost" id="smtpHost" class="form-control" placeholder="contoh: smtp.gmail.com" value="<%= smtpHost || '' %>">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="smtpPort">SMTP port</label>
+          <input type="number" name="smtpPort" id="smtpPort" class="form-control" min="1" max="65535" step="1" value="<%= smtpPort || 587 %>">
+          <p class="text-muted" style="margin-top: 0.5rem;">587 (STARTTLS) atau 465 (TLS). Wajib diisi saat reset lewat email diaktifkan.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="smtpUser">SMTP username</label>
+          <input type="text" name="smtpUser" id="smtpUser" class="form-control" placeholder="contoh: noreply@contoh.com" value="<%= smtpUser || '' %>">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="smtpPass">SMTP password</label>
+          <input type="password" name="smtpPass" id="smtpPass" class="form-control" autocomplete="new-password" placeholder="<%= smtpPassSet ? 'Sudah diatur — kosongkan untuk tetap memakai yang lama' : 'Belum diatur' %>">
+          <p class="text-muted" style="margin-top: 0.5rem;">Disimpan di settings.json dan tidak pernah ditampilkan kembali. Kosongkan untuk tetap memakai password yang sudah tersimpan.</p>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Simpan Pengaturan Email</button>
+          <a href="/admin" class="btn btn-secondary">Batal</a>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>

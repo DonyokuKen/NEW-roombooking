@@ -13,6 +13,23 @@ const groupNames = Object.keys(groups).sort();
 <div class="container-fluid" style="padding: 2.5rem 1.5rem;">
   <p class="text-muted mb-4"><%= equipment.length %> kelengkapan ditemukan</p>
 
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="POST" action="/admin/equipment">
+        <div class="d-flex gap-2">
+          <select name="idruangan" class="form-control" style="max-width: 280px;">
+            <option value="">Tanpa Ruangan</option>
+            <% (rooms || []).forEach(r => { %>
+              <option value="<%= r.id %>"><%= r.namaruangan %></option>
+            <% }) %>
+          </select>
+          <input type="text" name="NamaKelengkapan" class="form-control" placeholder="Nama kelengkapan baru, contoh: Proyektor" required>
+          <button type="submit" class="btn btn-primary">+ Tambah</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <% if (duplicateGroups && duplicateGroups.length > 0) { %>
     <div class="card mb-4" style="border: 2px solid #f59e0b;">
       <div class="card-header">
@@ -48,6 +65,7 @@ const groupNames = Object.keys(groups).sort();
               <tr>
                 <th>Nama Kelengkapan</th>
                 <th>Status</th>
+                <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -55,6 +73,12 @@ const groupNames = Object.keys(groups).sort();
                 <tr>
                   <td><%= item.NamaKelengkapan %></td>
                   <td><span class="badge badge-<%= st[1] %>"><%= st[0] %></span></td>
+                  <td>
+                    <a href="/admin/equipment/<%= item.id %>/edit" class="btn btn-sm btn-secondary">Edit</a>
+                    <form method="POST" action="/admin/equipment/<%= item.id %>/delete" style="display:inline;" onsubmit="return confirm('Hapus &quot;<%= item.NamaKelengkapan.replace(/'/g, "\\'") %>&quot;? Dipakai <%= (typeof refCounts !== 'undefined' ? refCounts[item.id] : 0) || 0 %> booking - referensi booking dibiarkan apa adanya.');">
+                      <button type="submit" class="btn btn-sm btn-danger">Hapus</button>
+                    </form>
+                  </td>
                 </tr>
               <% }) %>
             </tbody>

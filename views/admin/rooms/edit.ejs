@@ -69,6 +69,19 @@
           <button type="submit" class="btn btn-primary">+ Tambah</button>
         </div>
       </form>
+      <% if (unassigned && unassigned.length > 0) { %>
+        <form method="POST" action="/admin/rooms/<%= room.id %>/equipment/attach" style="margin-top: 1rem;">
+          <div class="d-flex gap-2">
+            <select name="eqId" class="form-control" required>
+              <option value="">— Pasang kelengkapan yang belum ada ruangan —</option>
+              <% unassigned.forEach(item => { %>
+                <option value="<%= item.id %>"><%= item.NamaKelengkapan %></option>
+              <% }) %>
+            </select>
+            <button type="submit" class="btn btn-secondary">Pasang</button>
+          </div>
+        </form>
+      <% } %>
     </div>
   </div>
 </div>

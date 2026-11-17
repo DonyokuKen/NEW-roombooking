@@ -49,7 +49,7 @@ const isSU = typeof currentUser !== 'undefined' && currentUser && currentUser.is
                 <td><%= user.dept_name || user.dept || '-' %></td>
                 <td><%= roleLabel(user.roles) %></td>
                 <td><span class="badge badge-<%= user.userstatus === 'A' ? 'confirmed' : 'cancelled' %>"><%= user.userstatus === 'A' ? 'Aktif' : 'Nonaktif' %></span></td>
-                <% if (isSU) { %><td><a href="/admin/users/<%= user.id %>/edit" class="btn btn-sm btn-secondary">Edit</a></td><% } %>
+                <% if (isSU) { %><td><a href="/admin/users/<%= user.id %>/edit" class="btn btn-sm btn-secondary">Edit</a><% if (String(user.id) !== String(currentUser.id)) { %> <form method="POST" action="/admin/users/<%= user.id %>/delete" style="display:inline;" onsubmit="return confirm('Hapus pengguna &quot;<%= user.namalengkap.replace(/'/g, "\\'") %>&quot;? <%= (typeof bookingCounts !== 'undefined' ? bookingCounts[user.id] : 0) || 0 %> booking sebagai pemesan TIDAK dihapus.');"><button type="submit" class="btn btn-sm btn-danger">Hapus</button></form><% } %></td><% } %>
               </tr>
             <% }) %>
           </tbody>

@@ -18,6 +18,13 @@
       <p class="text-center mt-3">
         Belum punya akun? <a href="/register">Daftar di sini</a>
       </p>
+      <p class="text-center mt-3">
+        <% if (typeof emailResetEnabled !== 'undefined' && emailResetEnabled) { %>
+          <a href="/forgot-password">Lupa password?</a>
+        <% } else { %>
+          <span class="text-muted">Contact administrator to reset password</span>
+        <% } %>
+      </p>
     </div>
   </div>
 </div>

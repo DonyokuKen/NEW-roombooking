@@ -39,6 +39,7 @@ const deptStatus = s => s === 'A' ? ['Aktif', 'confirmed'] : (s === 'D' ? ['Diha
               <th>Deskripsi</th>
               <th>Anggota</th>
               <th>Status</th>
+              <th>Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -48,6 +49,11 @@ const deptStatus = s => s === 'A' ? ['Aktif', 'confirmed'] : (s === 'D' ? ['Diha
                 <td><%= dept.deskripsi || '-' %></td>
                 <td><%= memberCount[dept.id] || 0 %></td>
                 <td><span class="badge badge-<%= st[1] %>"><%= st[0] %></span></td>
+                <td>
+                  <form method="POST" action="/admin/departments/<%= dept.id %>/delete" style="display:inline;" onsubmit="return confirm('Hapus departemen &quot;<%= dept.namadepartment.replace(/'/g, "\\'") %>&quot;? <%= memberCount[dept.id] || 0 %> anggota dan <%= (typeof bookingCount !== 'undefined' ? bookingCount[dept.id] : 0) || 0 %> booking TIDAK dihapus - referensi departemen mereka dibiarkan apa adanya.');">
+                    <button type="submit" class="btn btn-sm btn-danger">Hapus</button>
+                  </form>
+                </td>
               </tr>
             <% }) %>
           </tbody>

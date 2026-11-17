@@ -12,7 +12,12 @@
     "dev": "node --watch server.js",
     "test": "echo \"No tests yet\" && exit 0"
   },
-  "keywords": ["room", "booking", "reservation", "calendar"],
+  "keywords": [
+    "room",
+    "booking",
+    "reservation",
+    "calendar"
+  ],
   "author": "DonyokuKen",
   "license": "MIT",
   "dependencies": {
@@ -21,6 +26,7 @@
     "ejs": "^3.1.10",
     "express": "^4.19.2",
     "express-session": "^1.18.0",
-    "mysql2": "^3.11.3"
+    "mysql2": "^3.11.3",
+    "nodemailer": "^10.6.0"
   }
 }

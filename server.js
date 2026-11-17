@@ -10,6 +10,7 @@ const db = require('./lib/db');
 const notify = require('./lib/notify');
 const settings = require('./lib/settings');
 const merge = require('./lib/merge');
+const passwordReset = require('./lib/passwordReset');
 
 const app = express();
 const PORT = process.env.PORT || 3100;
@@ -276,7 +277,10 @@ app.get('/login', (req, res) => {
   if (res.locals.currentUser) {
     return res.redirect('/');
   }
-  res.render('auth/login', { title: 'Login' });
+  res.render('auth/login', {
+    title: 'Login',
+    emailResetEnabled: settings.getEmailSettings().emailResetEnabled
+  });
 });
 
 // Login POST
@@ -316,6 +320,133 @@ app.post('/login', async (req, res) => {
     console.error('Login error:', err);
     setFlash(req, 'error', 'Terjadi kesalahan sistem');
     res.redirect('/login');
+  }
+});
+
+// ============================================================
+// PASSWORD RESET BY EMAIL (only when enabled in settings)
+// ============================================================
+// The reset link is built from the request host: http for a local host,
+// https otherwise (the app sits behind a TLS-terminating tunnel in
+// production, so req.protocol would wrongly say http there).
+function resetLinkFor(req, token, email) {
+  const host = req.get('host') || 'roombooking.ahaide.dpdns.org';
+  const proto = /^(127\.0\.0\.1|localhost)/.test(host) ? 'http' : 'https';
+  return `${proto}://${host}/reset-password/${token}?email=${encodeURIComponent(email)}`;
+}
+
+// Request reset page.
+app.get('/forgot-password', (req, res) => {
+  if (!settings.getEmailSettings().emailResetEnabled) {
+    setFlash(req, 'error', 'Reset password lewat email sedang tidak aktif. Contact administrator to reset password.');
+    return res.redirect('/login');
+  }
+  res.render('auth/forgot-password', { title: 'Lupa Password' });
+});
+
+// Request reset: same generic reply whether the email exists or not, so
+// the page never reveals which emails are registered. A send failure is
+// flashed clearly and the token is removed again — no crash, no 500, and
+// the password is left unchanged.
+app.post('/forgot-password', async (req, res) => {
+  try {
+    if (!settings.getEmailSettings().emailResetEnabled) {
+      setFlash(req, 'error', 'Reset password lewat email sedang tidak aktif. Contact administrator to reset password.');
+      return res.redirect('/login');
+    }
+    const email = (req.body.email || '').trim().toLowerCase();
+    const generic = 'Jika email terdaftar, tautan reset password sudah dikirim. Periksa kotak masuk Anda (berlaku 60 menit).';
+    if (!email) {
+      setFlash(req, 'error', 'Email wajib diisi');
+      return res.redirect('/forgot-password');
+    }
+    const user = await db.findUserByEmail(email);
+    if (!user) {
+      setFlash(req, 'success', generic);
+      return res.redirect('/login');
+    }
+    const token = passwordReset.generateToken();
+    const tokenHash = passwordReset.hashToken(token);
+    await db.createPasswordReset(email, tokenHash);
+    try {
+      await passwordReset.sendResetEmail(
+        settings.getAll(),
+        email,
+        resetLinkFor(req, token, email)
+      );
+    } catch (err) {
+      console.error('Send reset email error:', err);
+      await db.deletePasswordReset(email);
+      setFlash(req, 'error', 'Gagal mengirim email reset password (' + (err.message || 'periksa pengaturan SMTP') + '). Password Anda tidak berubah.');
+      return res.redirect('/forgot-password');
+    }
+    setFlash(req, 'success', generic);
+    res.redirect('/login');
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    setFlash(req, 'error', 'Terjadi kesalahan sistem');
+    res.redirect('/forgot-password');
+  }
+});
+
+// Reset form: token + email from the link. Invalid or expired tokens go
+// back to the request page with a plain message.
+app.get('/reset-password/:token', async (req, res) => {
+  try {
+    if (!settings.getEmailSettings().emailResetEnabled) {
+      setFlash(req, 'error', 'Reset password lewat email sedang tidak aktif. Contact administrator to reset password.');
+      return res.redirect('/login');
+    }
+    const email = (req.query.email || '').trim().toLowerCase();
+    const row = email ? await db.findPasswordReset(email, passwordReset.hashToken(req.params.token)) : null;
+    if (!row || passwordReset.isExpired(row)) {
+      setFlash(req, 'error', 'Tautan reset tidak valid atau sudah kedaluwarsa. Silakan minta tautan baru.');
+      return res.redirect('/forgot-password');
+    }
+    res.render('auth/reset-password', { title: 'Reset Password', token: req.params.token, email });
+  } catch (err) {
+    console.error('Reset password page error:', err);
+    setFlash(req, 'error', 'Terjadi kesalahan sistem');
+    res.redirect('/forgot-password');
+  }
+});
+
+// Apply the new password: bcrypt-hash, save, invalidate the token so the
+// link cannot be reused.
+app.post('/reset-password/:token', async (req, res) => {
+  try {
+    if (!settings.getEmailSettings().emailResetEnabled) {
+      setFlash(req, 'error', 'Reset password lewat email sedang tidak aktif. Contact administrator to reset password.');
+      return res.redirect('/login');
+    }
+    const email = (req.body.email || '').trim().toLowerCase();
+    const { password, password_confirmation } = req.body;
+    const row = email ? await db.findPasswordReset(email, passwordReset.hashToken(req.params.token)) : null;
+    if (!row || passwordReset.isExpired(row)) {
+      setFlash(req, 'error', 'Tautan reset tidak valid atau sudah kedaluwarsa. Silakan minta tautan baru.');
+      return res.redirect('/forgot-password');
+    }
+    if (!password || password.length < 6) {
+      setFlash(req, 'error', 'Password baru minimal 6 karakter');
+      return res.redirect('/reset-password/' + req.params.token + '?email=' + encodeURIComponent(email));
+    }
+    if (password !== password_confirmation) {
+      setFlash(req, 'error', 'Password dan konfirmasi password tidak cocok');
+      return res.redirect('/reset-password/' + req.params.token + '?email=' + encodeURIComponent(email));
+    }
+    const user = await db.findUserByEmail(email);
+    if (!user) {
+      setFlash(req, 'error', 'Tautan reset tidak valid. Silakan minta tautan baru.');
+      return res.redirect('/forgot-password');
+    }
+    await db.updateUser(user.id, { password: await bcrypt.hash(password, 10) });
+    await db.deletePasswordReset(email);
+    setFlash(req, 'success', 'Password berhasil direset. Silakan login dengan password baru Anda.');
+    res.redirect('/login');
+  } catch (err) {
+    console.error('Apply reset password error:', err);
+    setFlash(req, 'error', 'Terjadi kesalahan sistem');
+    res.redirect('/forgot-password');
   }
 });
 
@@ -1071,11 +1202,18 @@ app.get('/admin/rooms/:id/edit', requireAdmin, async (req, res) => {
       return res.redirect('/admin/rooms');
     }
     const equipment = await db.getAllKelengkapan({ roomId: req.params.id });
+    // Unassigned equipment (idruangan NULL, "Tanpa Ruangan") offered for
+    // attaching to this room. The fetch itself was never broken — most
+    // rooms genuinely have no assigned rows (only 12 of 26 active rooms
+    // have any; 15 active items are unassigned) — but the page offered no
+    // way to pull those items in, only to create new rows.
+    const unassigned = await db.getAllKelengkapan({ unassigned: true });
 
     res.render('admin/rooms/edit', {
       title: 'Edit Ruangan',
       room,
-      equipment
+      equipment,
+      unassigned
     });
   } catch (err) {
     console.error('Edit room page error:', err);
@@ -1162,6 +1300,32 @@ app.post('/admin/rooms/:id/equipment/:eqId/delete', requireAdmin, async (req, re
   }
 });
 
+// Attach EXISTING unassigned equipment to a room (from the Edit Ruangan
+// page). Only items with no room yet (idruangan NULL) can be attached —
+// taking an item from another room would strip that room, so it is
+// refused. The item keeps its id, so booking references still resolve.
+app.post('/admin/rooms/:id/equipment/attach', requireAdmin, async (req, res) => {
+  try {
+    const room = await db.getRoomById(req.params.id);
+    if (!room) {
+      setFlash(req, 'error', 'Ruangan tidak ditemukan');
+      return res.redirect('/admin/rooms');
+    }
+    const item = await db.getKelengkapanById(req.body.eqId);
+    if (!item || item.status === 'D' || item.idruangan !== null) {
+      setFlash(req, 'error', 'Kelengkapan tidak tersedia untuk dipasang (sudah ada ruangan atau sudah dihapus)');
+      return res.redirect('/admin/rooms/' + req.params.id + '/edit');
+    }
+    await db.updateKelengkapan(item.id, { idruangan: req.params.id });
+    setFlash(req, 'success', `Kelengkapan "${item.NamaKelengkapan}" dipasang ke ${room.namaruangan}`);
+    res.redirect('/admin/rooms/' + req.params.id + '/edit');
+  } catch (err) {
+    console.error('Attach room equipment error:', err);
+    setFlash(req, 'error', 'Terjadi kesalahan sistem');
+    res.redirect('/admin/rooms/' + req.params.id + '/edit');
+  }
+});
+
 // Admin departments (similar structure to rooms)
 app.get('/admin/departments', requireAdmin, async (req, res) => {
   try {
@@ -1178,11 +1342,22 @@ app.get('/admin/departments', requireAdmin, async (req, res) => {
         merge.normalizeName(u.dept) === merge.normalizeName(d.namadepartment)
       ).length;
     }
+    // Booking counts per department, same id-OR-name match as the detail
+    // page (trevents.department is an id on most rows, a name on 221).
+    const allBookings = await db.getAllBookings({ limit: 10000, offset: 0 });
+    const bookingCount = {};
+    for (const d of departments) {
+      bookingCount[d.id] = allBookings.filter(b =>
+        String(b.department) === String(d.id) ||
+        merge.normalizeName(b.department) === merge.normalizeName(d.namadepartment)
+      ).length;
+    }
     res.render('admin/departments/index', {
       title: 'Kelola Departemen',
       departments,
       duplicateGroups,
-      memberCount
+      memberCount,
+      bookingCount
     });
   } catch (err) {
     console.error('Admin departments error:', err);
@@ -1219,6 +1394,32 @@ app.post('/admin/departments/merge', requireAdmin, async (req, res) => {
   }
 });
 
+// Delete department (soft-delete, status='D'). Members and bookings are
+// NOT deleted — their department reference is left as-is (the app already
+// tolerates users pointing at soft-deleted departments). Deliberately uses
+// updateDepartment, not db.deleteDepartment: that helper refuses when any
+// booking carries the department id, which contradicts this behaviour.
+app.post('/admin/departments/:id/delete', requireAdmin, async (req, res) => {
+  try {
+    const department = await db.getDepartmentById(req.params.id);
+    if (!department) {
+      setFlash(req, 'error', 'Departemen tidak ditemukan');
+      return res.redirect('/admin/departments');
+    }
+    if (department.status === 'D') {
+      setFlash(req, 'error', 'Departemen sudah dihapus');
+      return res.redirect('/admin/departments');
+    }
+    await db.updateDepartment(req.params.id, { status: 'D' });
+    setFlash(req, 'success', `Departemen "${department.namadepartment}" dihapus. Anggota dan booking tidak dihapus — referensi departemen mereka dibiarkan apa adanya.`);
+    res.redirect('/admin/departments');
+  } catch (err) {
+    console.error('Delete department error:', err);
+    setFlash(req, 'error', 'Terjadi kesalahan sistem');
+    res.redirect('/admin/departments');
+  }
+});
+
 // Department detail: members (dept = id OR name) + booking count.
 app.get('/admin/departments/:id', requireAdmin, async (req, res) => {
   try {
@@ -1233,7 +1434,12 @@ app.get('/admin/departments/:id', requireAdmin, async (req, res) => {
       merge.normalizeName(u.dept) === merge.normalizeName(department.namadepartment)
     );
     const bookings = await db.getAllBookings({ limit: 10000, offset: 0 });
+    // trevents.department holds a department ID on most rows and a plain
+    // name on 221 rows, so match BOTH forms. (Before this fix only the
+    // name form was compared, so departments whose bookings carry the id
+    // — e.g. KTM id 43, 5 bookings — wrongly showed 0.)
     const bookingCount = bookings.filter(b =>
+      String(b.department) === String(department.id) ||
       merge.normalizeName(b.department) === merge.normalizeName(department.namadepartment)
     ).length;
     res.render('admin/departments/show', {
@@ -1301,6 +1507,103 @@ app.post('/admin/equipment/merge', requireAdmin, async (req, res) => {
   }
 });
 
+// Add equipment from /admin/equipment: room selector + name. An empty
+// room means unassigned ("Tanpa Ruangan"); it can be attached to a room
+// later from the Edit Ruangan page.
+app.post('/admin/equipment', requireAdmin, async (req, res) => {
+  try {
+    const name = (req.body.NamaKelengkapan || '').trim();
+    if (!name) {
+      setFlash(req, 'error', 'Nama kelengkapan wajib diisi');
+      return res.redirect('/admin/equipment');
+    }
+    let roomId = null;
+    if (req.body.idruangan) {
+      roomId = parseInt(req.body.idruangan, 10);
+      if (Number.isNaN(roomId) || !(await db.getRoomById(roomId))) {
+        setFlash(req, 'error', 'Ruangan tidak ditemukan');
+        return res.redirect('/admin/equipment');
+      }
+    }
+    const id = await db.createKelengkapan({ idruangan: roomId, NamaKelengkapan: name, status: 'A' });
+    setFlash(req, 'success', `Kelengkapan "${name}" ditambahkan (id ${id})`);
+    res.redirect('/admin/equipment');
+  } catch (err) {
+    console.error('Add equipment error:', err);
+    setFlash(req, 'error', 'Terjadi kesalahan sistem');
+    res.redirect('/admin/equipment');
+  }
+});
+
+// Edit equipment page — rename + change status (A = Tersedia, N = Tidak
+// Tersedia). Room is not changed here; attaching to a room happens from
+// the Edit Ruangan page.
+app.get('/admin/equipment/:id/edit', requireAdmin, async (req, res) => {
+  try {
+    const item = await db.getKelengkapanById(req.params.id);
+    if (!item || item.status === 'D') {
+      setFlash(req, 'error', 'Kelengkapan tidak ditemukan');
+      return res.redirect('/admin/equipment');
+    }
+    const rooms = await db.getAllRooms({ status: 'A' });
+    res.render('admin/equipment/edit', {
+      title: 'Edit Kelengkapan',
+      item,
+      rooms
+    });
+  } catch (err) {
+    console.error('Edit equipment page error:', err);
+    res.status(500).send('Server error');
+  }
+});
+
+// Update equipment — rename / status.
+app.post('/admin/equipment/:id/edit', requireAdmin, async (req, res) => {
+  try {
+    const item = await db.getKelengkapanById(req.params.id);
+    if (!item || item.status === 'D') {
+      setFlash(req, 'error', 'Kelengkapan tidak ditemukan');
+      return res.redirect('/admin/equipment');
+    }
+    const name = (req.body.NamaKelengkapan || '').trim();
+    const status = req.body.status;
+    if (!name) {
+      setFlash(req, 'error', 'Nama kelengkapan wajib diisi');
+      return res.redirect('/admin/equipment/' + req.params.id + '/edit');
+    }
+    if (!['A', 'N'].includes(status)) {
+      setFlash(req, 'error', 'Status tidak valid');
+      return res.redirect('/admin/equipment/' + req.params.id + '/edit');
+    }
+    await db.updateKelengkapan(req.params.id, { NamaKelengkapan: name, status });
+    setFlash(req, 'success', `Kelengkapan "${name}" berhasil diupdate`);
+    res.redirect('/admin/equipment');
+  } catch (err) {
+    console.error('Update equipment error:', err);
+    setFlash(req, 'error', 'Terjadi kesalahan sistem');
+    res.redirect('/admin/equipment/' + req.params.id + '/edit');
+  }
+});
+
+// Delete equipment (soft-delete, status='D'). Booking references that name
+// the id are left untouched — same behaviour as the room-edit remove.
+app.post('/admin/equipment/:id/delete', requireAdmin, async (req, res) => {
+  try {
+    const item = await db.getKelengkapanById(req.params.id);
+    if (!item || item.status === 'D') {
+      setFlash(req, 'error', 'Kelengkapan tidak ditemukan');
+      return res.redirect('/admin/equipment');
+    }
+    await db.deleteKelengkapan(req.params.id);
+    setFlash(req, 'success', `Kelengkapan "${item.NamaKelengkapan}" dihapus. Referensi booking dibiarkan apa adanya.`);
+    res.redirect('/admin/equipment');
+  } catch (err) {
+    console.error('Delete equipment error:', err);
+    setFlash(req, 'error', 'Terjadi kesalahan sistem');
+    res.redirect('/admin/equipment');
+  }
+});
+
 // Admin users
 app.get('/admin/users', requireAdmin, async (req, res) => {
   try {
@@ -1332,6 +1635,9 @@ app.get('/admin/users', requireAdmin, async (req, res) => {
       db.countUsers(filters)
     ]);
 
+    // Bookings per booker (userid -> count), for the delete confirm dialog.
+    const bookingCounts = await db.countBookingsByUser();
+
     const totalPages = Math.ceil(total / perPage);
 
     res.render('admin/users/index', {
@@ -1342,7 +1648,8 @@ app.get('/admin/users', requireAdmin, async (req, res) => {
       total,
       search,
       dept,
-      departments
+      departments,
+      bookingCounts
     });
   } catch (err) {
     console.error('Admin users error:', err);
@@ -1432,22 +1739,71 @@ app.post('/admin/users/:id/edit', requireSuperAdmin, async (req, res) => {
   }
 });
 
+// Delete user — Super Admin only. Soft-delete: userstatus='N', the app's
+// existing non-active value (there is no 'D' for users anywhere in the
+// code; the edit form only offers A/N, and findUserById/findUserByEmail
+// require 'A', so an 'N' user cannot log in but still shows in the list
+// as Nonaktif and can be reactivated from the edit page). The user's
+// bookings are NOT deleted — they still resolve by userid.
+app.post('/admin/users/:id/delete', requireSuperAdmin, async (req, res) => {
+  try {
+    const user = await db.findUserByIdAny(req.params.id);
+    if (!user) {
+      setFlash(req, 'error', 'Pengguna tidak ditemukan');
+      return res.redirect('/admin/users');
+    }
+    if (String(user.id) === String(res.locals.currentUser.id)) {
+      setFlash(req, 'error', 'Tidak dapat menghapus akun sendiri');
+      return res.redirect('/admin/users');
+    }
+    if (user.userstatus !== 'A') {
+      setFlash(req, 'error', 'Pengguna sudah nonaktif');
+      return res.redirect('/admin/users');
+    }
+    await db.updateUser(req.params.id, { userstatus: 'N' });
+    setFlash(req, 'success', `Pengguna "${user.namalengkap}" dihapus (nonaktif). Booking miliknya tidak dihapus.`);
+    res.redirect('/admin/users');
+  } catch (err) {
+    console.error('Delete user error:', err);
+    setFlash(req, 'error', 'Terjadi kesalahan sistem');
+    res.redirect('/admin/users');
+  }
+});
+
 // Admin settings — the booking window (how many days ahead a regular user
 // must book) lives in settings.json on disk, not hardcoded and not in the
 // database. Admins only.
 app.get('/admin/settings', requireAdmin, (req, res) => {
+  const email = settings.getEmailSettings();
   res.render('admin/settings', {
     title: 'Pengaturan',
     windowDays: settings.getBookingWindowDays(),
     minDays: settings.MIN_DAYS,
-    maxDays: settings.MAX_DAYS
+    maxDays: settings.MAX_DAYS,
+    emailResetEnabled: email.emailResetEnabled,
+    smtpHost: email.smtpHost,
+    smtpPort: email.smtpPort,
+    smtpUser: email.smtpUser,
+    smtpPassSet: email.smtpPassSet
   });
 });
 
 app.post('/admin/settings', requireAdmin, (req, res) => {
   try {
     const days = settings.saveBookingWindowDays(req.body.bookingWindowDays);
-    setFlash(req, 'success', `Pengaturan disimpan. Pengguna biasa sekarang harus booking minimal ${days} hari sebelum acara.`);
+    // Email reset: the checkbox is only present in the body when ticked.
+    // A blank SMTP password keeps the stored one (never rendered to the
+    // page, never overwritten by an empty field).
+    const email = settings.saveEmailSettings({
+      emailResetEnabled: req.body.emailResetEnabled === 'on',
+      smtpHost: req.body.smtpHost,
+      smtpPort: req.body.smtpPort,
+      smtpUser: req.body.smtpUser,
+      smtpPass: req.body.smtpPass ? req.body.smtpPass : undefined
+    });
+    setFlash(req, 'success',
+      `Pengaturan disimpan. Pengguna biasa sekarang harus booking minimal ${days} hari sebelum acara. ` +
+      `Reset password lewat email: ${email.emailResetEnabled ? 'aktif' : 'tidak aktif'}.`);
   } catch (err) {
     setFlash(req, 'error', err.message);
   }
