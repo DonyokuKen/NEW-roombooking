@@ -7,6 +7,7 @@ const session = require('express-session');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const db = require('./lib/db');
+const notify = require('./lib/notify');
 
 const app = express();
 const PORT = process.env.PORT || 3100;
@@ -52,6 +53,13 @@ app.use(async (req, res, next) => {
           isAdmin: db.isAdminUser(user),
           isSuperAdmin: db.isSuperAdmin(user)
         };
+        // Badge count for the navbar bell: recent notifications only,
+        // so old entries can never inflate it.
+        try {
+          res.locals.notifCount = await notify.countRecentNotifications(user.id);
+        } catch (err) {
+          res.locals.notifCount = 0;
+        }
       }
     } catch (err) {
       console.error('Error loading current user:', err);
@@ -349,6 +357,30 @@ app.get('/bookings', requireAuth, async (req, res) => {
   }
 });
 
+// My notifications — newest first, recent window only by default so old
+// entries can never bury the newest ones. ?all=1 shows older entries.
+app.get('/notifications', requireAuth, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const showAll = req.query.all === '1';
+    const { rows, total, totalPages } = await notify.getUserNotifications(
+      res.locals.currentUser.id, page, showAll
+    );
+    res.render('notifications/index', {
+      title: 'Notifikasi',
+      notifications: rows,
+      page,
+      totalPages,
+      total,
+      showAll,
+      windowDays: notify.DEFAULT_WINDOW_DAYS
+    });
+  } catch (err) {
+    console.error('Notifications error:', err);
+    res.status(500).send('Server error');
+  }
+});
+
 // Create booking page
 app.get('/bookings/create', requireAuth, async (req, res) => {
   try {
@@ -393,7 +425,7 @@ app.post('/bookings', requireAuth, async (req, res) => {
     } = req.body;
     
     // Validation
-    if (!room_id || !date || !timestart || !timeend || !eventname || !eventpeoplequantity) {
+    if (!room_id || !date || !timestart || !timeend || !eventname || !eventpeoplequantity || !department) {
       setFlash(req, 'error', 'Semua field wajib diisi');
       return res.redirect('/bookings/create');
     }
@@ -568,6 +600,12 @@ app.post('/bookings/:id', requireAuth, async (req, res) => {
       department,
       kelengkapan
     } = req.body;
+    
+    // Validation (department is NOT NULL in trevents — fail cleanly, not on the DB)
+    if (!room_id || !date || !timestart || !timeend || !eventname || !eventpeoplequantity || !department) {
+      setFlash(req, 'error', 'Semua field wajib diisi');
+      return res.redirect('/bookings/' + req.params.id + '/edit');
+    }
     
     // Check for conflicts (exclude current booking)
     const conflicts = await db.checkBookingConflict(room_id, date, timestart, timeend, req.params.id);
@@ -1064,8 +1102,16 @@ app.use((err, req, res, next) => {
 // START SERVER
 // ============================================================
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 RoomBooking server running on http://localhost:${PORT}`);
   console.log(`📅 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🕐 Timezone: ${process.env.TZ || 'UTC'}`);
+  // Never send ancient reminders as spam: expire pending notifications
+  // whose events already happened (the old scheduler left 594 behind).
+  try {
+    const expired = await notify.expireStaleNotifications();
+    if (expired > 0) console.log(`🔔 Expired ${expired} stale pending notification(s)`);
+  } catch (err) {
+    console.error('Failed to expire stale notifications:', err.message);
+  }
 });

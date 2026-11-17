@@ -5,9 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= title %> | RoomBooking</title>
   <link rel="stylesheet" href="/css/app.css">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#F6F1E8">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Fonts load async so a slow font CDN can never block first paint -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700&display=swap"></noscript>
 </head>
 <body>
   <!-- Navigation -->
@@ -19,6 +27,7 @@
         <li><a href="/rooms" class="<%= typeof active !== 'undefined' && active === 'rooms' ? 'active' : '' %>">Ruangan</a></li>
         <% if (typeof currentUser !== 'undefined' && currentUser) { %>
           <li><a href="/bookings" class="<%= typeof active !== 'undefined' && active === 'bookings' ? 'active' : '' %>">Booking Saya</a></li>
+          <li><a href="/notifications">🔔 Notifikasi<% if (typeof notifCount !== 'undefined' && notifCount > 0) { %><span class="nav-count"><%= notifCount %></span><% } %></a></li>
           <% if (currentUser.isAdmin) { %>
             <li><a href="/admin" class="<%= typeof active !== 'undefined' && active === 'admin' ? 'active' : '' %>">Admin</a></li>
           <% } %>

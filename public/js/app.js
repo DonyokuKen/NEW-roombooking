@@ -188,3 +188,14 @@ backButtons.forEach(button => {
 });
 
 console.log('🎨 RoomBooking UI loaded');
+
+// PWA: register the service worker so the app can be installed.
+// Kept tiny on purpose — only the static shell is precached, so the
+// install finishes in seconds instead of hanging.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.warn('Service worker registration failed:', err);
+    });
+  });
+}

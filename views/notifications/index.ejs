@@ -1,0 +1,51 @@
+<div class="container" style="padding: 2.5rem 1.5rem;">
+  <h1 class="mb-4">Notifikasi</h1>
+
+  <% if (!showAll) { %>
+    <p class="text-muted">Menampilkan notifikasi terbaru (<%= windowDays %> hari terakhir), yang terbaru di atas. Notifikasi lama tidak ditampilkan agar tidak menumpuk.</p>
+  <% } else { %>
+    <p class="text-muted">Menampilkan semua notifikasi, yang terbaru di atas. <a href="/notifications">Kembali ke 30 hari terakhir</a></p>
+  <% } %>
+
+  <% if (notifications && notifications.length > 0) { %>
+    <div class="booking-list">
+      <% notifications.forEach(n => { %>
+        <div class="booking-item">
+          <div class="booking-content">
+            <h3 class="booking-title"><%= n.title %></h3>
+            <div class="booking-meta">
+              <span class="booking-meta-item"><%= n.body %></span>
+            </div>
+            <div class="booking-meta">
+              <span class="booking-meta-item">🕐 <%= new Date(n.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %></span>
+              <% if (n.notification_type) { %><span class="booking-meta-item"><%= n.notification_type.replace(/_/g, ' ') %></span><% } %>
+            </div>
+          </div>
+          <% if (n.status === 'delivered') { %>
+            <span class="badge badge-confirmed">Terkirim</span>
+          <% } else if (n.status === 'pending') { %>
+            <span class="badge badge-pending">Menunggu</span>
+          <% } else { %>
+            <span class="badge badge-cancelled"><%= n.status %></span>
+          <% } %>
+        </div>
+      <% }) %>
+    </div>
+
+    <% if (totalPages > 1) { %>
+      <div class="pagination">
+        <% if (page > 1) { %><a href="/notifications?page=<%= page - 1 %><%= showAll ? '&all=1' : '' %>">&laquo; Sebelumnya</a><% } %>
+        <% for (let p = Math.max(1, page - 2); p <= Math.min(totalPages, page + 2); p++) { %>
+          <% if (p === page) { %><span class="active"><%= p %></span><% } else { %><a href="/notifications?page=<%= p %><%= showAll ? '&all=1' : '' %>"><%= p %></a><% } %>
+        <% } %>
+        <% if (page < totalPages) { %><a href="/notifications?page=<%= page + 1 %><%= showAll ? '&all=1' : '' %>">Berikutnya &raquo;</a><% } %>
+      </div>
+    <% } %>
+  <% } else { %>
+    <p class="text-muted">Tidak ada notifikasi.</p>
+  <% } %>
+
+  <% if (!showAll && total > 0) { %>
+    <p class="mt-4"><a href="/notifications?all=1">Lihat notifikasi yang lebih lama</a></p>
+  <% } %>
+</div>
