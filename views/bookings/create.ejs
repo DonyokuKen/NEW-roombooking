@@ -18,15 +18,15 @@
         <div class="grid grid-3">
           <div class="form-group">
             <label class="form-label" for="date">Tanggal</label>
-            <input type="date" name="date" id="date" class="form-control" required>
+            <input type="date" name="date" id="date" class="form-control" value="<%= (typeof prefill !== 'undefined' && prefill.date) || '' %>" required>
           </div>
           <div class="form-group">
             <label class="form-label" for="timestart">Waktu Mulai</label>
-            <input type="time" name="timestart" id="timestart" class="form-control" required>
+            <input type="time" name="timestart" id="timestart" class="form-control" value="<%= (typeof prefill !== 'undefined' && prefill.timestart) || '' %>" required>
           </div>
           <div class="form-group">
             <label class="form-label" for="timeend">Waktu Selesai</label>
-            <input type="time" name="timeend" id="timeend" class="form-control" required>
+            <input type="time" name="timeend" id="timeend" class="form-control" value="<%= (typeof prefill !== 'undefined' && prefill.timeend) || '' %>" required>
           </div>
         </div>
         <div class="form-group">

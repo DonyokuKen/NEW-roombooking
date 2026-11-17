@@ -64,7 +64,7 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
             <div class="cal-room-name" title="<%= room.namaruangan %>"><%= shortRoom(room.namaruangan) %></div>
             <div class="cal-room-meta"><%= list.length === 0 ? 'Tidak ada booking' : list.length + ' booking' %></div>
           </div>
-          <div class="cal-track">
+          <div class="cal-track" data-room-id="<%= room.id %>" data-room-name="<%= room.namaruangan %>">
             <% if (showNow) { %><div class="cal-now" style="left: <%= nowLeft %>%"></div><% } %>
             <% list.forEach(b => { const p = blockPos(b); %>
               <button type="button" class="cal-block st-<%= b.status %>"
@@ -90,6 +90,7 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
     <span><i class="lg-A"></i>Dikonfirmasi</span>
     <span><i class="lg-P"></i>Menunggu persetujuan</span>
     <span><i class="lg-R"></i>Ditolak / dibatalkan</span>
+    <span>💡 Klik area kosong di jadwal untuk booking</span>
     <span style="margin-left:auto"><%= bookings.length %> booking pada <%= label %></span>
   </div>
 </div>
@@ -114,6 +115,20 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
     </div>
     <div class="m-actions">
       <a class="btn btn-secondary" id="m-detail" href="#" style="flex:1">Lihat Detail</a>
+    </div>
+  </div>
+</div>
+
+<!-- New-booking modal (click an empty slot) -->
+<div class="cal-modal-backdrop" id="cal-new-modal">
+  <div class="cal-modal">
+    <button type="button" class="cal-modal-close" id="cal-new-close">✕</button>
+    <h3>Booking Baru</h3>
+    <div class="m-sub" id="n-room">-</div>
+    <div class="m-row"><span>Tanggal</span><span><%= label %></span></div>
+    <div class="m-row"><span>Waktu</span><span id="n-time">-</span></div>
+    <div class="m-actions">
+      <a class="btn btn-primary" id="n-go" href="#" style="flex:1">Buat Booking →</a>
     </div>
   </div>
 </div>
@@ -143,6 +158,39 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
       } else {
         acts.style.display = 'none';
       }
+      backdrop.classList.add('open');
+    });
+  });
+})();
+
+// Click an empty slot to start a booking there
+(function () {
+  var backdrop = document.getElementById('cal-new-modal');
+  var closeBtn = document.getElementById('cal-new-close');
+  var startHour = <%= startHour %>, endHour = <%= endHour %>;
+  var dateStr = '<%= date %>';
+  function fmt(mins) {
+    var h = Math.floor(mins / 60), m = mins % 60;
+    return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+  }
+  function close() { backdrop.classList.remove('open'); }
+  closeBtn.addEventListener('click', close);
+  backdrop.addEventListener('click', function (e) { if (e.target === backdrop) close(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+  document.querySelectorAll('.cal-track').forEach(function (track) {
+    track.addEventListener('click', function (e) {
+      if (e.target.closest('.cal-block')) return;
+      var rect = track.getBoundingClientRect();
+      var frac = (e.clientX - rect.left) / rect.width;
+      frac = Math.max(0, Math.min(1, frac));
+      var mins = startHour * 60 + frac * (endHour - startHour) * 60;
+      var start = Math.round(mins / 30) * 30;
+      var end = Math.min(start + 60, endHour * 60);
+      if (end - start < 30) start = end - 30;
+      document.getElementById('n-room').textContent = track.dataset.roomName;
+      document.getElementById('n-time').textContent = fmt(start) + ' - ' + fmt(end);
+      document.getElementById('n-go').href = '/bookings/create?room_id=' + track.dataset.roomId +
+        '&date=' + dateStr + '&timestart=' + fmt(start) + '&timeend=' + fmt(end);
       backdrop.classList.add('open');
     });
   });

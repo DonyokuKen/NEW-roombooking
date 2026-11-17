@@ -413,18 +413,26 @@ app.get('/bookings/create', requireAuth, async (req, res) => {
     const departments = await db.getAllDepartments({ status: 'A' });
     const users = await db.getAllUsers({ status: 'A' });
     const selectedRoomId = req.query.room_id || null;
-    
+
+    // Prefill from calendar click-to-book (validated, else ignored)
+    const prefill = {
+      date: /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : '',
+      timestart: /^([01]\d|2[0-3]):[0-5]\d$/.test(req.query.timestart || '') ? req.query.timestart : '',
+      timeend: /^([01]\d|2[0-3]):[0-5]\d$/.test(req.query.timeend || '') ? req.query.timeend : ''
+    };
+
     let equipment = [];
     if (selectedRoomId) {
       equipment = await db.getKelengkapanByRoom(selectedRoomId);
     }
-    
+
     res.render('bookings/create', {
       title: 'Buat Booking Baru',
       rooms,
       departments,
       users,
       selectedRoomId,
+      prefill,
       equipment
     });
   } catch (err) {
