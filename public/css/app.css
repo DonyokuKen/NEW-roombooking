@@ -1359,3 +1359,183 @@ table tbody tr:last-child td {
 }
 .cal-block.ubooked:hover { transform: none; box-shadow: 0 4px 10px rgba(23, 32, 68, 0.14); }
 .cal-block.ubooked small { color: #5b6472; }
+
+/* Booking popup (from admin calendar): tap a free hour to pick it, tap more
+   hours to extend, tap inside the pick to shrink it. The popup never dims
+   the calendar, so the chosen slot stays visible and tappable behind it. */
+#cal-new-modal {
+  background: transparent;
+  pointer-events: none;
+}
+
+#cal-new-modal .cal-modal {
+  pointer-events: auto;
+}
+
+.cal-block {
+  position: absolute;
+  top: 9px;
+  height: 48px;
+  border-radius: 12px;
+  padding: 7px 10px;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow: hidden;
+  cursor: pointer;
+  border: 0;
+  text-align: left;
+  box-shadow: 0 4px 10px rgba(23, 32, 68, 0.14);
+  transition: transform 0.12s, box-shadow 0.12s;
+  min-width: 34px;
+}
+
+.cal-block:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(23, 32, 68, 0.2);
+}
+
+.cal-block small {
+  display: block;
+  font-weight: 600;
+  opacity: 0.9;
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.cal-block.st-A { background: var(--accent-green); }
+.cal-block.st-P { background: var(--accent-orange); }
+.cal-block.st-R { background: #9aa1b5; }
+.cal-block.st-C { background: #c3c8d6; }
+
+.cal-now {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent-blue);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.cal-now::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(47, 125, 246, 0.25);
+}
+
+.cal-legend {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.cal-legend i {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+
+.cal-legend .lg-A { background: var(--accent-green); }
+.cal-legend .lg-P { background: var(--accent-orange); }
+.cal-legend .lg-R { background: #9aa1b5; }
+
+/* Booking detail modal */
+.cal-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 26, 38, 0.45);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+
+.cal-modal-backdrop.open {
+  display: flex;
+}
+
+.cal-modal {
+  background: #fff;
+  border-radius: 22px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+  width: min(440px, 100%);
+  padding: 22px;
+  max-height: 86vh;
+  overflow-y: auto;
+}
+
+.cal-modal h3 {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0 0 4px;
+  padding-right: 28px;
+}
+
+.cal-modal .m-sub {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.cal-modal .m-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.cal-modal .m-row span:first-child {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.cal-modal .m-row span:last-child {
+  font-weight: 700;
+  text-align: right;
+}
+
+.cal-modal .m-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.cal-modal .m-actions .btn {
+  flex: 1;
+  border-radius: 12px;
+  text-align: center;
+  justify-content: center;
+}
+
+.cal-modal-close {
+  position: absolute;
+  margin-left: calc(min(440px, 100%) - 64px);
+  margin-top: -6px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--surface-soft);
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--text-ink-2);
+}

@@ -64,6 +64,7 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
               <div class="cal-room-meta"><%= list.length === 0 ? 'Tidak ada booking' : list.length + ' booking' %></div>
             </div>
             <div class="cal-track" data-room-id="<%= room.id %>" data-room-name="<%= room.namaruangan %>">
+              <div class="cal-select"></div>
               <% if (showNow) { %><div class="cal-now" style="left: <%= nowLeft %>%"></div><% } %>
               <% list.forEach(b => { const p = blockPos(b); %>
                 <div class="cal-block ubooked" style="left: <%= p.left %>%; width: <%= p.width %>%;">
@@ -79,7 +80,22 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
 
     <div class="cal-legend">
       <span><i style="background: repeating-linear-gradient(45deg, rgba(120, 128, 145, 0.28) 0 6px, transparent 6px 12px), repeating-linear-gradient(-45deg, rgba(120, 128, 145, 0.28) 0 6px, transparent 6px 12px), #e3e5ea; border: 1px solid #c3c7d0;"></i>Sudah dibooking</span>
-      <span>💡 Ketuk jam yang kosong untuk booking ruangan itu</span>
+      <span>💡 Ketuk satu jam untuk booking, ketuk jam lain untuk tambah jam, ketuk jam di dalam pilihan untuk kurangi jam</span>
+    </div>
+  </div>
+</div>
+
+<!-- New-booking popup: tap hours to pick a range first, confirm to book -->
+<div class="cal-modal-backdrop" id="cal-new-modal">
+  <div class="cal-modal">
+    <button type="button" class="cal-modal-close" id="cal-new-close">✕</button>
+    <h3>Booking this room?</h3>
+    <div class="m-sub" id="n-room">-</div>
+    <div class="m-row"><span>Tanggal</span><span><%= label %></span></div>
+    <div class="m-row"><span>Waktu</span><span id="n-time">-</span></div>
+    <div class="m-actions">
+      <button type="button" class="btn btn-secondary" id="n-cancel" style="flex:1">Batal</button>
+      <a class="btn btn-primary" id="n-go" href="#" style="flex:1">Ya, Booking →</a>
     </div>
   </div>
 </div>
@@ -100,21 +116,119 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
     document.querySelectorAll('.cal-row').forEach(function (row) {
       row.style.display = (!v || row.dataset.roomId === v) ? '' : 'none';
     });
+    // A new filter resets any in-progress pick.
+    document.getElementById('cal-new-modal').classList.remove('open');
+    document.querySelectorAll('.cal-select').forEach(function (el) { el.classList.remove('on', 'grey'); });
   }
   roomFilter.addEventListener('change', applyRoomFilter);
   applyRoomFilter(); // apply the server-rendered selection on load
+
+  // Tap a free hour to pick it (grey) and ask "Booking this room?";
+  // tap more hours on the same room to add them, tap inside the pick to
+  // shrink it, drag to pick a range. The booking form opens only on confirm.
+  var backdrop = document.getElementById('cal-new-modal');
+  var closeBtn = document.getElementById('cal-new-close');
+  var sel = null; // { roomId, roomName, track, start, end }
+  var drag = null; // { track, anchor, startX, moved }
+  var openedAt = 0; // when the modal last opened (guards the synthetic click after a touch tap)
+  function minsAt(track, clientX) {
+    var rect = track.getBoundingClientRect();
+    var frac = (clientX - rect.left) / rect.width;
+    frac = Math.max(0, Math.min(1, frac));
+    return Math.round((dayStart + frac * (dayEnd - dayStart)) / 30) * 30;
+  }
+  function showSel(track, a, b, grey) {
+    var el = track.querySelector('.cal-select');
+    var lo = Math.min(a, b), hi = Math.max(a, b);
+    if (hi - lo < 30) hi = lo + 30;
+    el.style.left = ((lo - dayStart) / (dayEnd - dayStart) * 100) + '%';
+    el.style.width = ((hi - lo) / (dayEnd - dayStart) * 100) + '%';
+    el.classList.add('on');
+    el.classList.toggle('grey', !!grey);
+  }
+  function hideSel(track) {
+    track.querySelector('.cal-select').classList.remove('on', 'grey');
+  }
+  function updateModal() {
+    document.getElementById('n-room').textContent = sel.roomName;
+    document.getElementById('n-time').textContent = fmt(sel.start) + ' - ' + fmt(sel.end);
+    document.getElementById('n-go').href = '/bookings/create?room_id=' + sel.roomId +
+      '&date=' + dateStr + '&timestart=' + fmt(sel.start) + '&timeend=' + fmt(sel.end);
+    // Keep the chosen slot visible on the calendar behind the popup (grey),
+    // moving live as the time changes.
+    if (sel.track) showSel(sel.track, sel.start, sel.end, true);
+  }
+  function openModal() {
+    updateModal();
+    backdrop.classList.add('open');
+    openedAt = Date.now();
+  }
+  function closeModal() {
+    backdrop.classList.remove('open');
+    if (sel && sel.track) hideSel(sel.track);
+  }
+  closeBtn.addEventListener('click', closeModal);
+  backdrop.addEventListener('click', function (e) {
+    // A touch tap opens the modal on pointerup, then the browser fires a
+    // synthetic click at the same spot — it would land on the backdrop and
+    // close the modal instantly. Ignore backdrop clicks right after opening.
+    if (e.target === backdrop && Date.now() - openedAt > 400) closeModal();
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+  document.getElementById('n-cancel').addEventListener('click', closeModal);
+
   document.querySelectorAll('.cal-track').forEach(function (track) {
-    track.addEventListener('click', function (e) {
+    track.addEventListener('pointerdown', function (e) {
       // Booked blocks are not clickable — no event detail for users.
       if (e.target.closest('.ubooked')) return;
-      var rect = track.getBoundingClientRect();
-      var frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      var mins = Math.round((dayStart + frac * (dayEnd - dayStart)) / 30) * 30;
-      var end = Math.min(mins + 60, dayEnd);
-      if (end - mins < 30) mins = end - 30;
-      window.location.href = '/bookings/create?room_id=' + track.dataset.roomId +
-        '&date=' + dateStr + '&timestart=' + fmt(mins) + '&timeend=' + fmt(end);
+      // Clear the previous selection's grey box (it may be on another room).
+      if (sel && sel.track) hideSel(sel.track);
+      drag = { track: track, anchor: minsAt(track, e.clientX), startX: e.clientX, moved: false };
+      if (e.pointerType === 'mouse' || e.pointerType === 'pen') {
+        try { track.setPointerCapture(e.pointerId); } catch (_) {}
+      }
     });
+    track.addEventListener('pointermove', function (e) {
+      if (!drag || drag.track !== track) return;
+      if (e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
+      if (Math.abs(e.clientX - drag.startX) < 6) return;
+      drag.moved = true;
+      showSel(track, drag.anchor, minsAt(track, e.clientX));
+    });
+    function finish(e, cancelled) {
+      if (!drag || drag.track !== track) return;
+      var d = drag; drag = null;
+      hideSel(track);
+      if (cancelled) return;
+      // Popup already open + tap (not drag) on the same room: extend the
+      // grey range with the tapped hour instead of starting over.
+      if (!d.moved && sel && sel.track === track && backdrop.classList.contains('open')) {
+        var cell = d.anchor;
+        if (cell < sel.start) sel.start = cell;
+        else if (cell >= sel.end) sel.end = Math.min(cell + 60, dayEnd);
+        else if (cell === sel.start) sel.start = cell + 60; // tap first hour: drop it
+        else sel.end = cell; // tap any other hour inside: end the range here
+        if (sel.end - sel.start < 30) sel.end = Math.min(sel.start + 30, dayEnd);
+        updateModal();
+        return;
+      }
+      var start, end;
+      if (d.moved) {
+        var cur = minsAt(track, e.clientX);
+        start = Math.min(d.anchor, cur);
+        end = Math.max(d.anchor, cur);
+        if (end - start < 30) end = start + 30;
+        if (end > dayEnd) { end = dayEnd; start = Math.max(dayStart, end - 30); }
+      } else {
+        start = d.anchor;
+        end = Math.min(start + 60, dayEnd);
+        if (end - start < 30) start = end - 30;
+      }
+      sel = { roomId: track.dataset.roomId, roomName: track.dataset.roomName, track: track, start: start, end: end };
+      openModal();
+    }
+    track.addEventListener('pointerup', function (e) { finish(e, false); });
+    track.addEventListener('pointercancel', function (e) { finish(e, true); });
   });
 })();
 </script>
