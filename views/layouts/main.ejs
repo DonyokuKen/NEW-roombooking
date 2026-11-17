@@ -6,7 +6,7 @@
   <title><%= title %> | RoomBooking</title>
   <link rel="stylesheet" href="/css/app.css">
   <link rel="manifest" href="/manifest.webmanifest">
-  <meta name="theme-color" content="#F6F1E8">
+  <meta name="theme-color" content="#EDEFF5">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -14,15 +14,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Fonts load async so a slow font CDN can never block first paint -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700&display=swap"></noscript>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"></noscript>
 </head>
 <body>
   <!-- Navigation -->
   <nav class="navbar">
     <div class="navbar-container">
       <a href="/" class="navbar-brand">🏢 RoomBooking</a>
-      <ul class="navbar-menu">
+      <button type="button" id="menu-toggle" class="menu-toggle" aria-label="Menu">☰</button>
+      <ul class="navbar-menu" id="navbar-menu">
         <li><a href="/" class="<%= typeof active !== 'undefined' && active === 'dashboard' ? 'active' : '' %>">Dashboard</a></li>
         <li><a href="/rooms" class="<%= typeof active !== 'undefined' && active === 'rooms' ? 'active' : '' %>">Ruangan</a></li>
         <% if (typeof currentUser !== 'undefined' && currentUser) { %>

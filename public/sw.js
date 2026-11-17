@@ -5,7 +5,7 @@
  */
 'use strict';
 
-const CACHE_VERSION = 'roombooking-v1';
+const CACHE_VERSION = 'roombooking-v2';
 const PRECACHE_URLS = [
   '/css/app.css',
   '/js/app.js',
