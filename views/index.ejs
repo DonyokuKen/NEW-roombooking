@@ -67,7 +67,7 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
               <div class="cal-room-name" title="<%= room.namaruangan %>"><%= shortRoom(room.namaruangan) %></div>
               <div class="cal-room-meta"><%= list.length === 0 ? 'Tidak ada booking' : list.length + ' booking' %></div>
             </div>
-            <div class="cal-track" data-room-id="<%= room.id %>" data-room-name="<%= room.namaruangan %>">
+            <div class="cal-track" data-room-id="<%= room.id %>" data-room-name="<%= room.namaruangan %>" data-booked="<%= list.map(b => toMin(b.timestart) + '-' + toMin(b.timeend)).join(',') %>">
               <div class="cal-select"></div>
               <% if (showNow) { %><div class="cal-now" style="left: <%= nowLeft %>%"></div><% } %>
               <% list.forEach(b => { const p = blockPos(b); %>
@@ -118,6 +118,20 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
   </div>
 </div>
 
+<!-- Already-booked popup: the picked hours clash with an existing booking -->
+<div class="cal-modal-backdrop" id="cal-busy-modal">
+  <div class="cal-modal">
+    <button type="button" class="cal-modal-close" id="cal-busy-close">✕</button>
+    <h3>Sudah dibooking</h3>
+    <div class="m-sub">Jam yang dipilih bentrok dengan booking yang sudah ada.</div>
+    <div class="m-row"><span>Ruangan</span><span id="b-room">-</span></div>
+    <div class="m-row"><span>Sudah dibooking</span><span id="b-time">-</span></div>
+    <div class="m-actions">
+      <button type="button" class="btn btn-primary" id="busy-ok" style="flex:1">OK, mengerti</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
   var startHour = <%= startHour %>, endHour = <%= endHour %>;
@@ -128,6 +142,37 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
   function fmt(mins) {
     var h = Math.floor(mins / 60), m = mins % 60;
     return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+  }
+  // Booked hours for one room, from the track's data-booked ("start-end,..."
+  // in minutes). A pick may never cross a booking: it is trimmed to the
+  // free stretch around where the user tapped, and refused when there is
+  // less than 30 minutes free.
+  function bookedRanges(track) {
+    var out = [];
+    (track.dataset.booked || '').split(',').forEach(function (pair) {
+      if (!pair) return;
+      var p = pair.split('-');
+      out.push([parseInt(p[0], 10), parseInt(p[1], 10)]);
+    });
+    return out;
+  }
+  // Free stretch containing `mins`, bounded by the bookings around it (or
+  // the day's edges). Null when `mins` itself is inside a booking.
+  function freeWindow(track, mins) {
+    var lo = dayStart, hi = dayEnd;
+    var rs = bookedRanges(track);
+    for (var i = 0; i < rs.length; i++) {
+      if (mins >= rs[i][0] && mins < rs[i][1]) return null;
+      if (rs[i][1] <= mins && rs[i][1] > lo) lo = rs[i][1];
+      if (rs[i][0] >= mins && rs[i][0] < hi) hi = rs[i][0];
+    }
+    return [Math.max(lo, dayStart), Math.min(hi, dayEnd)];
+  }
+  // First booking overlapping [a, b), for the "already booked" popup.
+  function blockerFor(track, a, b) {
+    var rs = bookedRanges(track), hit = null;
+    rs.forEach(function (r) { if (!hit && a < r[1] && b > r[0]) hit = r; });
+    return hit;
   }
   // Room filter works in place — no reload, no URL change.
   var roomFilter = document.getElementById('room-filter');
@@ -213,6 +258,25 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSoonModal(); });
 
+  // "Already booked" popup: same open/close pattern as the too-soon popup,
+  // including the guard against the synthetic click after a touch tap.
+  var busyBackdrop = document.getElementById('cal-busy-modal');
+  var busyOpenedAt = 0;
+  function openBusyModal(track, a, b) {
+    var hit = blockerFor(track, a, b);
+    document.getElementById('b-room').textContent = track.dataset.roomName;
+    document.getElementById('b-time').textContent = hit ? fmt(hit[0]) + ' - ' + fmt(hit[1]) : '-';
+    busyBackdrop.classList.add('open');
+    busyOpenedAt = Date.now();
+  }
+  function closeBusyModal() { busyBackdrop.classList.remove('open'); }
+  document.getElementById('cal-busy-close').addEventListener('click', closeBusyModal);
+  document.getElementById('busy-ok').addEventListener('click', closeBusyModal);
+  busyBackdrop.addEventListener('click', function (e) {
+    if (e.target === busyBackdrop && Date.now() - busyOpenedAt > 400) closeBusyModal();
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeBusyModal(); });
+
   document.querySelectorAll('.cal-track').forEach(function (track) {
     track.addEventListener('pointerdown', function (e) {
       // Booked blocks are not clickable — no event detail for users.
@@ -229,7 +293,11 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
       if (e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
       if (Math.abs(e.clientX - drag.startX) < 6) return;
       drag.moved = true;
-      showSel(track, drag.anchor, minsAt(track, e.clientX));
+      // The grey preview stops at the booking edge, like the real pick.
+      var w = freeWindow(track, drag.anchor);
+      var cur = minsAt(track, e.clientX);
+      if (w) cur = Math.max(w[0], Math.min(w[1], cur));
+      showSel(track, drag.anchor, cur);
     });
     function finish(e, cancelled) {
       if (!drag || drag.track !== track) return;
@@ -246,11 +314,26 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
       // grey range with the tapped hour instead of starting over.
       if (!d.moved && sel && sel.track === track && backdrop.classList.contains('open')) {
         var cell = d.anchor;
+        // A tap past a booking cannot extend the pick: say which booking
+        // is in the way instead of silently ignoring the tap.
+        var w = freeWindow(track, sel.start);
+        if (!w || cell < w[0] || cell >= w[1]) {
+          openBusyModal(track, Math.min(sel.start, cell), Math.max(sel.end, cell + 60));
+          return;
+        }
+        var oldStart = sel.start, oldEnd = sel.end;
         if (cell < sel.start) sel.start = cell;
         else if (cell >= sel.end) sel.end = Math.min(cell + 60, dayEnd);
         else if (cell === sel.start) sel.start = cell + 60; // tap first hour: drop it
         else sel.end = cell; // tap any other hour inside: end the range here
         if (sel.end - sel.start < 30) sel.end = Math.min(sel.start + 30, dayEnd);
+        sel.start = Math.max(sel.start, w[0]);
+        sel.end = Math.min(sel.end, w[1]);
+        if (sel.end - sel.start < 30) {
+          sel.start = oldStart; sel.end = oldEnd;
+          openBusyModal(track, oldStart, cell + 60);
+          return;
+        }
         updateModal();
         return;
       }
@@ -266,6 +349,14 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
         end = Math.min(start + 60, dayEnd);
         if (end - start < 30) start = end - 30;
       }
+      // Trim the pick to the free stretch around the anchor: it may never
+      // cross a booking. Less than 30 minutes free means no booking here.
+      var wantStart = start, wantEnd = end;
+      var w2 = freeWindow(track, d.anchor);
+      if (!w2) { openBusyModal(track, d.anchor, d.anchor + 60); return; }
+      start = Math.max(start, w2[0]);
+      end = Math.min(end, w2[1]);
+      if (end - start < 30) { openBusyModal(track, wantStart, wantEnd); return; }
       sel = { roomId: track.dataset.roomId, roomName: track.dataset.roomName, track: track, start: start, end: end };
       openModal();
     }
