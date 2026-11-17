@@ -4,6 +4,10 @@ const deptStatus = s => s === 'A' ? ['Aktif', 'confirmed'] : (s === 'D' ? ['Diha
 <div class="container-fluid" style="padding: 2.5rem 1.5rem;">
   <p class="text-muted mb-4"><%= departments.length %> departemen ditemukan</p>
 
+  <div class="mb-4">
+    <a href="/admin/departments/new" class="btn btn-primary">+ Tambah Departemen</a>
+  </div>
+
   <% if (duplicateGroups && duplicateGroups.length > 0) { %>
     <div class="card mb-4" style="border: 2px solid #f59e0b;">
       <div class="card-header">
@@ -50,6 +54,7 @@ const deptStatus = s => s === 'A' ? ['Aktif', 'confirmed'] : (s === 'D' ? ['Diha
                 <td><%= memberCount[dept.id] || 0 %></td>
                 <td><span class="badge badge-<%= st[1] %>"><%= st[0] %></span></td>
                 <td>
+                  <a href="/admin/departments/<%= dept.id %>/edit" class="btn btn-sm btn-secondary">Edit</a>
                   <form method="POST" action="/admin/departments/<%= dept.id %>/delete" style="display:inline;" onsubmit="return confirm('Hapus departemen &quot;<%= dept.namadepartment.replace(/'/g, "\\'") %>&quot;? <%= memberCount[dept.id] || 0 %> anggota dan <%= (typeof bookingCount !== 'undefined' ? bookingCount[dept.id] : 0) || 0 %> booking TIDAK dihapus - referensi departemen mereka dibiarkan apa adanya.');">
                     <button type="submit" class="btn btn-sm btn-danger">Hapus</button>
                   </form>

@@ -1,0 +1,74 @@
+<%
+const roleLabel = r => ({ U: 'Pengguna', M: 'Manager', SU: 'Super Admin' }[r] || r);
+const statusLabel = s => ({ P: 'Tertunda', pending: 'Tertunda', A: 'Dikonfirmasi', accepted: 'Dikonfirmasi', confirmed: 'Dikonfirmasi', R: 'Ditolak', rejected: 'Ditolak', C: 'Dibatalkan', cancelled: 'Dibatalkan' }[s] || s);
+const statusBadge = s => ({ P: 'pending', pending: 'pending', A: 'confirmed', accepted: 'confirmed', confirmed: 'confirmed', R: 'rejected', rejected: 'rejected', C: 'cancelled', cancelled: 'cancelled' }[s] || 'pending');
+const isSU = typeof currentUser !== 'undefined' && currentUser && currentUser.isSuperAdmin;
+const fmtLogin = v => {
+  if (!v) return '-';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return '-';
+  return d.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' });
+};
+const fmtDate = v => {
+  if (!v) return '-';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return String(v);
+  return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' });
+};
+%>
+<div class="container-fluid" style="padding: 2.5rem 1.5rem;">
+  <p><a href="/admin/users">&laquo; Semua Pengguna</a></p>
+  <h2 class="mb-3"><%= showUser.namalengkap %></h2>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <p><strong>Email:</strong> <%= showUser.email %></p>
+      <p><strong>No. Telepon:</strong> <%= showUser.notelp || '-' %></p>
+      <p><strong>Jenis Kelamin:</strong> <%= showUser.gender === 'P' ? 'Perempuan' : 'Laki-laki' %></p>
+      <p><strong>Departemen:</strong> <%= deptLabel %></p>
+      <p><strong>Peran:</strong> <%= roleLabel(showUser.roles) %></p>
+      <p><strong>Status:</strong> <span class="badge badge-<%= showUser.userstatus === 'A' ? 'confirmed' : 'cancelled' %>"><%= showUser.userstatus === 'A' ? 'Aktif' : 'Nonaktif' %></span></p>
+      <p><strong>Login Terakhir:</strong> <%= fmtLogin(showUser.last_login_at) %></p>
+      <p><strong>Terdaftar:</strong> <%= fmtDate(showUser.created_at) %></p>
+      <% if (isSU) { %><a href="/admin/users/<%= showUser.id %>/edit" class="btn btn-secondary">Edit</a><% } %>
+    </div>
+  </div>
+
+  <h3 class="mb-3">Riwayat Booking (<%= bookings.length %>)</h3>
+  <% if (bookings && bookings.length > 0) { %>
+    <div class="card">
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Tanggal</th>
+              <th>Ruangan</th>
+              <th>Acara</th>
+              <th>Waktu</th>
+              <th>Jumlah Orang</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% bookings.forEach(b => { %>
+              <tr>
+                <td><%= fmtDate(b.date) %></td>
+                <td><%= b.namaruangan || ('Ruangan #' + b.ruanganid) %></td>
+                <td><a href="/admin/bookings/<%= b.id %>"><%= b.eventname %></a></td>
+                <td><%= (b.timestart || '').substring(0, 5) %>-<%= (b.timeend || '').substring(0, 5) %></td>
+                <td><%= b.eventpeoplequantity || '-' %></td>
+                <td><span class="badge badge-<%= statusBadge(b.status) %>"><%= statusLabel(b.status) %></span></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  <% } else { %>
+    <div class="empty-state">
+      <div class="empty-state-icon">📅</div>
+      <h2 class="empty-state-title">Belum ada booking</h2>
+      <p class="empty-state-text">Pengguna ini belum pernah membuat booking.</p>
+    </div>
+  <% } %>
+</div>

@@ -2,6 +2,14 @@
 const roleLabel = r => ({ U: 'Pengguna', M: 'Manager', SU: 'Super Admin' }[r] || r);
 const qs = p => `/admin/users?page=${p}&search=${encodeURIComponent(search || '')}&dept=${encodeURIComponent(dept || '')}`;
 const isSU = typeof currentUser !== 'undefined' && currentUser && currentUser.isSuperAdmin;
+// Last login is a DATETIME read in server-local (Asia/Jakarta) time; show
+// it as-is in WIB. NULL (never logged in since the column was added) -> '-'.
+const fmtLogin = v => {
+  if (!v) return '-';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return '-';
+  return d.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' });
+};
 %>
 <div class="container-fluid" style="padding: 2.5rem 1.5rem;">
   <p class="text-muted mb-4"><%= total %> pengguna ditemukan</p>
@@ -36,19 +44,21 @@ const isSU = typeof currentUser !== 'undefined' && currentUser && currentUser.is
               <th>Departemen</th>
               <th>Peran</th>
               <th>Status</th>
+              <th>Login Terakhir</th>
               <% if (isSU) { %><th>Aksi</th><% } %>
             </tr>
           </thead>
           <tbody>
             <% users.forEach(user => { %>
               <tr>
-                <td><%= user.namalengkap %></td>
+                <td><a href="/admin/users/<%= user.id %>"><%= user.namalengkap %></a></td>
                 <td><%= user.email %></td>
                 <td><%= user.notelp || '-' %></td>
                 <td><%= user.gender === 'P' ? 'Perempuan' : 'Laki-laki' %></td>
                 <td><%= user.dept_name || user.dept || '-' %></td>
                 <td><%= roleLabel(user.roles) %></td>
                 <td><span class="badge badge-<%= user.userstatus === 'A' ? 'confirmed' : 'cancelled' %>"><%= user.userstatus === 'A' ? 'Aktif' : 'Nonaktif' %></span></td>
+                <td><%= fmtLogin(user.last_login_at) %></td>
                 <% if (isSU) { %><td><a href="/admin/users/<%= user.id %>/edit" class="btn btn-sm btn-secondary">Edit</a><% if (String(user.id) !== String(currentUser.id)) { %> <form method="POST" action="/admin/users/<%= user.id %>/delete" style="display:inline;" onsubmit="return confirm('Hapus pengguna &quot;<%= user.namalengkap.replace(/'/g, "\\'") %>&quot;? <%= (typeof bookingCounts !== 'undefined' ? bookingCounts[user.id] : 0) || 0 %> booking sebagai pemesan TIDAK dihapus.');"><button type="submit" class="btn btn-sm btn-danger">Hapus</button></form><% } %></td><% } %>
               </tr>
             <% }) %>

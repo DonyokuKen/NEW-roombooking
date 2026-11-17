@@ -11,7 +11,8 @@ const roleLabel = r => ({ U: 'Pengguna', M: 'Manager', SU: 'Super Admin' }[r] ||
     <% if (department.deskripsi) { %> · <%= department.deskripsi %><% } %>
   </p>
 
-  <form method="POST" action="/admin/departments/<%= department.id %>/delete" style="margin-bottom: 1rem;" onsubmit="return confirm('Hapus departemen &quot;<%= department.namadepartment.replace(/'/g, "\\'") %>&quot;? <%= members.length %> anggota dan <%= bookingCount %> booking TIDAK dihapus - referensi departemen mereka dibiarkan apa adanya.');">
+  <a href="/admin/departments/<%= department.id %>/edit" class="btn btn-secondary">Edit Departemen</a>
+  <form method="POST" action="/admin/departments/<%= department.id %>/delete" style="margin-bottom: 1rem; display: inline;" onsubmit="return confirm('Hapus departemen &quot;<%= department.namadepartment.replace(/'/g, "\\'") %>&quot;? <%= members.length %> anggota dan <%= bookingCount %> booking TIDAK dihapus - referensi departemen mereka dibiarkan apa adanya.');">
     <button type="submit" class="btn btn-danger">Hapus Departemen</button>
   </form>
 
@@ -31,7 +32,7 @@ const roleLabel = r => ({ U: 'Pengguna', M: 'Manager', SU: 'Super Admin' }[r] ||
           <tbody>
             <% members.forEach(user => { %>
               <tr>
-                <td><%= user.namalengkap %></td>
+                <td><a href="/admin/users/<%= user.id %>"><%= user.namalengkap %></a></td>
                 <td><%= user.email %></td>
                 <td><%= user.notelp || '-' %></td>
                 <td><%= roleLabel(user.roles) %></td>

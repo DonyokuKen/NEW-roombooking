@@ -1,0 +1,27 @@
+<div class="container" style="max-width: 640px; padding: 2.5rem 1.5rem;">
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title"><%= department ? 'Edit Departemen' : 'Tambah Departemen' %></h2>
+    </div>
+    <div class="card-body">
+      <% if (department) { %><p class="text-muted mb-4">id <%= department.id %> · <%= department.status === 'A' ? 'Aktif' : 'Nonaktif' %></p><% } %>
+      <form method="POST" action="<%= formAction %>">
+        <div class="form-group">
+          <label class="form-label" for="namadepartment">Nama Departemen</label>
+          <input type="text" name="namadepartment" id="namadepartment" class="form-control" value="<%= department ? department.namadepartment : '' %>" required autofocus>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="deskripsi">Deskripsi</label>
+          <input type="text" name="deskripsi" id="deskripsi" class="form-control" value="<%= department ? (department.deskripsi || '') : '' %>">
+        </div>
+        <% if (department) { %>
+        <p class="text-muted" style="margin-top: 0.5rem;">Mengganti nama juga memperbarui semua pengguna dan booking yang menyebut nama lama.</p>
+        <% } %>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary"><%= department ? 'Simpan Perubahan' : 'Buat Departemen' %></button>
+          <a href="/admin/departments" class="btn btn-secondary">Batal</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

@@ -304,7 +304,15 @@ app.post('/login', async (req, res) => {
       setFlash(req, 'error', 'Email atau password salah');
       return res.redirect('/login');
     }
-    
+
+    // Record the login time for the admin "Login Terakhir" column. A
+    // failure here must never block the login itself.
+    try {
+      await db.updateLastLogin(user.id);
+    } catch (e) {
+      console.error('updateLastLogin failed (login continues):', e.message);
+    }
+
     req.session.userId = user.id;
     setFlash(req, 'success', `Selamat datang, ${user.namalengkap}!`);
 
@@ -1420,6 +1428,107 @@ app.post('/admin/departments/:id/delete', requireAdmin, async (req, res) => {
   }
 });
 
+// Create department — form. Must sit before GET /admin/departments/:id:
+// 'new' would otherwise match :id.
+app.get('/admin/departments/new', requireAdmin, (req, res) => {
+  res.render('admin/departments/form', {
+    title: 'Tambah Departemen',
+    department: null,
+    formAction: '/admin/departments/new'
+  });
+});
+
+// Create department — save. An active department with the same normalized
+// name is refused, so a duplicate the merge UI would flag right away
+// cannot be created by accident.
+app.post('/admin/departments/new', requireAdmin, async (req, res) => {
+  try {
+    const name = (req.body.namadepartment || '').trim();
+    const deskripsi = (req.body.deskripsi || '').trim();
+    if (!name) {
+      setFlash(req, 'error', 'Nama departemen wajib diisi');
+      return res.redirect('/admin/departments/new');
+    }
+    const departments = await db.getAllDepartments({});
+    if (departments.some(d => merge.normalizeName(d.namadepartment) === merge.normalizeName(name))) {
+      setFlash(req, 'error', `Departemen "${name}" sudah ada`);
+      return res.redirect('/admin/departments/new');
+    }
+    const id = await db.createDepartment({ namadepartment: name, deskripsi: deskripsi || null, status: 'A' });
+    setFlash(req, 'success', `Departemen "${name}" dibuat (id ${id})`);
+    res.redirect('/admin/departments');
+  } catch (err) {
+    console.error('Create department error:', err);
+    setFlash(req, 'error', 'Terjadi kesalahan sistem');
+    res.redirect('/admin/departments/new');
+  }
+});
+
+// Edit department — form (rename + description).
+app.get('/admin/departments/:id/edit', requireAdmin, async (req, res) => {
+  try {
+    const department = await db.getDepartmentById(req.params.id);
+    if (!department || department.status === 'D') {
+      setFlash(req, 'error', 'Departemen tidak ditemukan');
+      return res.redirect('/admin/departments');
+    }
+    res.render('admin/departments/form', {
+      title: 'Edit Departemen',
+      department,
+      formAction: '/admin/departments/' + department.id + '/edit'
+    });
+  } catch (err) {
+    console.error('Edit department page error:', err);
+    res.status(500).send('Server error');
+  }
+});
+
+// Update department. A rename rewrites every name-form reference
+// (users.dept, trevents.department) to the new name in the same
+// transaction, so members and bookings follow the rename instead of
+// being orphaned under the old name.
+app.post('/admin/departments/:id/edit', requireAdmin, async (req, res) => {
+  try {
+    const department = await db.getDepartmentById(req.params.id);
+    if (!department || department.status === 'D') {
+      setFlash(req, 'error', 'Departemen tidak ditemukan');
+      return res.redirect('/admin/departments');
+    }
+    const name = (req.body.namadepartment || '').trim();
+    const deskripsi = (req.body.deskripsi || '').trim();
+    if (!name) {
+      setFlash(req, 'error', 'Nama departemen wajib diisi');
+      return res.redirect('/admin/departments/' + req.params.id + '/edit');
+    }
+    const departments = await db.getAllDepartments({});
+    if (departments.some(d => String(d.id) !== String(department.id) &&
+        merge.normalizeName(d.namadepartment) === merge.normalizeName(name))) {
+      setFlash(req, 'error', `Departemen "${name}" sudah ada`);
+      return res.redirect('/admin/departments/' + req.params.id + '/edit');
+    }
+    let renamed = { usersRenamed: 0, bookingsRenamed: 0 };
+    if (merge.normalizeName(name) !== merge.normalizeName(department.namadepartment)) {
+      renamed = await db.withTransaction(q =>
+        merge.renameDepartment(q, department.id, department.namadepartment, name));
+    } else if (name !== department.namadepartment) {
+      // Only casing/spacing changed: the row still gets the exact new text.
+      await db.updateDepartment(department.id, { namadepartment: name });
+    }
+    if (deskripsi !== (department.deskripsi || '')) {
+      await db.updateDepartment(department.id, { deskripsi: deskripsi || null });
+    }
+    setFlash(req, 'success', `Departemen "${name}" berhasil diupdate` +
+      ((renamed.usersRenamed || renamed.bookingsRenamed)
+        ? ` (${renamed.usersRenamed} pengguna dan ${renamed.bookingsRenamed} booking mengikuti nama baru)`
+        : ''));
+    res.redirect('/admin/departments');
+  } catch (err) {
+    console.error('Update department error:', err);
+    setFlash(req, 'error', 'Terjadi kesalahan sistem');
+    res.redirect('/admin/departments/' + req.params.id + '/edit');
+  }
+});
+
 // Department detail: members (dept = id OR name) + booking count.
 app.get('/admin/departments/:id', requireAdmin, async (req, res) => {
   try {
@@ -1767,6 +1876,34 @@ app.post('/admin/users/:id/delete', requireSuperAdmin, async (req, res) => {
     console.error('Delete user error:', err);
     setFlash(req, 'error', 'Terjadi kesalahan sistem');
     res.redirect('/admin/users');
+  }
+});
+
+// User detail — profile + booking history. Names in the admin users list
+// and on department detail pages link here.
+app.get('/admin/users/:id', requireAdmin, async (req, res) => {
+  try {
+    const user = await db.findUserByIdAny(req.params.id);
+    if (!user) {
+      setFlash(req, 'error', 'Pengguna tidak ditemukan');
+      return res.redirect('/admin/users');
+    }
+    const departments = await db.getAllDepartments({ status: 'A' });
+    const currentDept = String(user.dept || '');
+    const activeMatch = departments.find(d => String(d.id) === currentDept);
+    const deptLabel = activeMatch
+      ? activeMatch.namadepartment
+      : (currentDept ? (/^[0-9]+$/.test(currentDept) ? `Departemen #${currentDept} (tidak aktif)` : currentDept) : '-');
+    const bookings = await db.getUserBookings(user.id);
+    res.render('admin/users/show', {
+      title: user.namalengkap,
+      showUser: user,
+      deptLabel,
+      bookings
+    });
+  } catch (err) {
+    console.error('User detail error:', err);
+    res.status(500).send('Server error');
   }
 });
 
