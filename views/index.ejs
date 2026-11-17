@@ -123,7 +123,7 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
   roomFilter.addEventListener('change', applyRoomFilter);
   applyRoomFilter(); // apply the server-rendered selection on load
 
-  // Tap a free hour to pick it (grey) and ask "Booking this room?";
+  // Tap a free hour to pick it (grey) and ask "Book This Room?";
   // tap more hours on the same room to add them, tap inside the pick to
   // shrink it, drag to pick a range. The booking form opens only on confirm.
   var backdrop = document.getElementById('cal-new-modal');
