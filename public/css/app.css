@@ -1032,3 +1032,321 @@ table tbody tr:last-child td {
   font-size: 16px;
   cursor: pointer;
 }
+
+/* Day calendar (shared with the admin calendar) — booked slots below are user-style */
+.cal-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.cal-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 14px;
+  box-shadow: var(--shadow-sm);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-ink-2);
+}
+
+.cal-filter select {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text-ink);
+  max-width: 220px;
+}
+
+.cal-datenav {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px;
+  box-shadow: var(--shadow-sm);
+}
+
+.cal-datenav a,
+.cal-datenav button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  color: var(--text-ink-2);
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.cal-datenav a:hover,
+.cal-datenav button:hover {
+  background: var(--surface-soft);
+}
+
+.cal-date-label {
+  font-weight: 700;
+  font-size: 14px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.cal-today {
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-ink-2);
+  text-decoration: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.cal-add {
+  background: var(--accent-blue);
+  color: #fff;
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 6px 14px rgba(47, 125, 246, 0.28);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cal-add:hover {
+  background: var(--accent-hover);
+  color: #fff;
+}
+
+.cal-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow-sm);
+  padding: 14px 16px 16px;
+  overflow: hidden;
+}
+
+.cal-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cal-inner {
+  min-width: 980px;
+}
+
+.cal-head,
+.cal-row {
+  display: flex;
+}
+
+.cal-room-col {
+  width: 190px;
+  flex-shrink: 0;
+  padding-right: 12px;
+}
+
+.cal-head .cal-room-col {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 10px;
+}
+
+.cal-hours {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+}
+
+.cal-hours span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding-bottom: 10px;
+}
+
+.cal-row {
+  border-top: 1px solid var(--border);
+  min-height: 66px;
+  align-items: stretch;
+}
+
+.cal-room {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cal-room-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cal-room-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.cal-track {
+  position: relative;
+  flex: 1;
+  background-image: linear-gradient(to right, var(--border) 1px, transparent 1px);
+  background-size: calc(100% / 16) 100%;
+}
+
+.cal-select {
+  position: absolute;
+  top: 9px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(47, 125, 246, 0.22);
+  border: 2px solid var(--accent-blue);
+  pointer-events: none;
+  display: none;
+  z-index: 3;
+}
+
+.cal-select.on {
+  display: block;
+}
+
+.cal-select.grey {
+  background: rgba(138, 144, 163, 0.35);
+  border-color: #8A90A3;
+}
+
+/* New-booking popup: no dimming at all — the calendar stays fully
+   visible on the same layer, and stays tappable behind the popup */
+#cal-new-modal {
+  background: transparent;
+  pointer-events: none;
+}
+
+#cal-new-modal .cal-modal {
+  pointer-events: auto;
+}
+
+.cal-block {
+  position: absolute;
+  top: 9px;
+  height: 48px;
+  border-radius: 12px;
+  padding: 7px 10px;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow: hidden;
+  cursor: pointer;
+  border: 0;
+  text-align: left;
+  box-shadow: 0 4px 10px rgba(23, 32, 68, 0.14);
+  transition: transform 0.12s, box-shadow 0.12s;
+  min-width: 34px;
+}
+
+.cal-block:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(23, 32, 68, 0.2);
+}
+
+.cal-block small {
+  display: block;
+  font-weight: 600;
+  opacity: 0.9;
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.cal-block.st-A { background: var(--accent-green); }
+.cal-block.st-P { background: var(--accent-orange); }
+.cal-block.st-R { background: #9aa1b5; }
+.cal-block.st-C { background: #c3c8d6; }
+
+.cal-now {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent-blue);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.cal-now::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(47, 125, 246, 0.25);
+}
+
+.cal-legend {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.cal-legend i {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+
+.cal-legend .lg-A { background: var(--accent-green); }
+.cal-legend .lg-P { background: var(--accent-orange); }
+.cal-legend .lg-R { background: #9aa1b5; }
+
+
+/* User calendar: booked slots are greyed out with a cross hatch, not clickable */
+.cal-track { cursor: pointer; }
+.cal-block.ubooked {
+  background: repeating-linear-gradient(45deg, rgba(120, 128, 145, 0.28) 0 6px, transparent 6px 12px), repeating-linear-gradient(-45deg, rgba(120, 128, 145, 0.28) 0 6px, transparent 6px 12px), #e3e5ea;
+  border: 1px solid #c3c7d0;
+  color: #5b6472;
+  cursor: default;
+}
+.cal-block.ubooked:hover { transform: none; box-shadow: 0 4px 10px rgba(23, 32, 68, 0.14); }
+.cal-block.ubooked small { color: #5b6472; }

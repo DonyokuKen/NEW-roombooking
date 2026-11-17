@@ -1,3 +1,26 @@
+<%
+const toMin = t => { const p = String(t || '0:00').split(':'); return (parseInt(p[0]) || 0) * 60 + (parseInt(p[1]) || 0); };
+const spanMin = (endHour - startHour) * 60;
+const blockPos = b => {
+  const s = Math.max(toMin(b.timestart), startHour * 60);
+  const e = Math.min(toMin(b.timeend), endHour * 60);
+  return {
+    left: ((s - startHour * 60) / spanMin * 100).toFixed(2),
+    width: (Math.max(e - s, 30) / spanMin * 100).toFixed(2)
+  };
+};
+const hours = [];
+for (let h = startHour; h < endHour; h++) hours.push(h);
+const nowDate = new Date();
+const nowMin = nowDate.getHours() * 60 + nowDate.getMinutes();
+const showNow = date === todayStr && nowMin >= startHour * 60 && nowMin <= endHour * 60;
+const nowLeft = ((nowMin - startHour * 60) / spanMin * 100).toFixed(2);
+const bookingsByRoom = {};
+calBookings.filter(b => b.status === 'P' || b.status === 'A').forEach(b => { (bookingsByRoom[String(b.ruanganid)] = bookingsByRoom[String(b.ruanganid)] || []).push(b); });
+const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
+const loggedIn = typeof currentUser !== 'undefined' && currentUser;
+%>
+
 <div class="hero">
   <div class="container">
     <span class="eyebrow">Sistem Booking Ruangan</span>
@@ -25,7 +48,70 @@
       <div class="stat-label">Booking Hari Ini</div>
     </div>
   </div>
-  
+
+  <h2 class="mt-4 mb-3">Kalender Ruangan</h2>
+  <div class="cal-toolbar">
+    <form method="GET" action="/" class="cal-filter">
+      <span>🏢</span>
+      <select name="room" onchange="this.form.submit()">
+        <option value="" <%= roomFilter === '' ? 'selected' : '' %>>Semua Ruangan</option>
+        <% calRooms.forEach(r => { %>
+          <option value="<%= r.id %>" <%= String(roomFilter) === String(r.id) ? 'selected' : '' %>><%= r.namaruangan %></option>
+        <% }) %>
+      </select>
+      <input type="hidden" name="date" value="<%= date %>">
+    </form>
+
+    <div class="cal-datenav">
+      <a href="/?date=<%= prevDate %><%= roomFilter ? '&room=' + roomFilter : '' %>" title="Hari sebelumnya">‹</a>
+      <span class="cal-date-label">📅 <%= label %></span>
+      <a href="/?date=<%= nextDate %><%= roomFilter ? '&room=' + roomFilter : '' %>" title="Hari berikutnya">›</a>
+    </div>
+
+    <% if (date !== todayStr) { %>
+      <a class="cal-today" href="/<%= roomFilter ? '?room=' + roomFilter : '' %>">Hari ini</a>
+    <% } %>
+  </div>
+
+  <div class="cal-card">
+    <div class="cal-scroll">
+      <div class="cal-inner">
+        <div class="cal-head">
+          <div class="cal-room-col">Ruangan</div>
+          <div class="cal-hours">
+            <% hours.forEach(h => { %><span><%= h %>:00</span><% }) %>
+          </div>
+        </div>
+
+        <% calRooms.forEach(room => {
+          const list = bookingsByRoom[String(room.id)] || [];
+          if (roomFilter && String(roomFilter) !== String(room.id)) return;
+        %>
+          <div class="cal-row">
+            <div class="cal-room-col cal-room">
+              <div class="cal-room-name" title="<%= room.namaruangan %>"><%= shortRoom(room.namaruangan) %></div>
+              <div class="cal-room-meta"><%= list.length === 0 ? 'Tidak ada booking' : list.length + ' booking' %></div>
+            </div>
+            <div class="cal-track" data-room-id="<%= room.id %>" data-room-name="<%= room.namaruangan %>">
+              <% if (showNow) { %><div class="cal-now" style="left: <%= nowLeft %>%"></div><% } %>
+              <% list.forEach(b => { const p = blockPos(b); %>
+                <div class="cal-block ubooked" style="left: <%= p.left %>%; width: <%= p.width %>%;">
+                  <%= loggedIn ? (b.namalengkap || 'Booked') : 'Sudah dibooking' %>
+                  <small><%= b.timestart %>-<%= b.timeend %></small>
+                </div>
+              <% }) %>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+
+    <div class="cal-legend">
+      <span><i style="background: repeating-linear-gradient(45deg, rgba(120, 128, 145, 0.28) 0 6px, transparent 6px 12px), repeating-linear-gradient(-45deg, rgba(120, 128, 145, 0.28) 0 6px, transparent 6px 12px), #e3e5ea; border: 1px solid #c3c7d0;"></i>Sudah dibooking</span>
+      <span>💡 Ketuk jam yang kosong untuk booking ruangan itu</span>
+    </div>
+  </div>
+
   <% if (rooms && rooms.length > 0) { %>
     <h2 class="mt-4 mb-3">Ruangan Populer</h2>
     <div class="grid grid-3">
@@ -46,30 +132,7 @@
       <% }) %>
     </div>
   <% } %>
-  
-  <% if (todayEvents && todayEvents.length > 0) { %>
-    <h2 class="mt-4 mb-3">Acara Hari Ini</h2>
-    <div class="booking-list">
-      <% todayEvents.slice(0, 5).forEach(event => { %>
-        <div class="booking-item">
-          <div class="booking-date-badge">
-            <div class="booking-date-day"><%= new Date(event.date).getDate() %></div>
-            <div class="booking-date-month"><%= new Date(event.date).toLocaleDateString('id-ID', {month: 'short'}) %></div>
-          </div>
-          <div class="booking-content">
-            <h3 class="booking-title"><%= event.eventname %></h3>
-            <div class="booking-meta">
-              <span class="booking-meta-item">🏢 <%= event.namaruangan %></span>
-              <span class="booking-meta-item">⏰ <%= event.timestart %> - <%= event.timeend %></span>
-              <span class="booking-meta-item">👤 <%= event.namalengkap %></span>
-            </div>
-          </div>
-          <span class="badge badge-confirmed">Dikonfirmasi</span>
-        </div>
-      <% }) %>
-    </div>
-  <% } %>
-  
+
   <div class="text-center mt-4">
     <% if (currentUser) { %>
       <a href="/bookings/create" class="btn btn-primary btn-lg">Buat Booking Baru</a>
@@ -78,3 +141,28 @@
     <% } %>
   </div>
 </div>
+
+<script>
+(function () {
+  var startHour = <%= startHour %>, endHour = <%= endHour %>;
+  var dayStart = startHour * 60, dayEnd = endHour * 60;
+  var dateStr = '<%= date %>';
+  function fmt(mins) {
+    var h = Math.floor(mins / 60), m = mins % 60;
+    return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+  }
+  document.querySelectorAll('.cal-track').forEach(function (track) {
+    track.addEventListener('click', function (e) {
+      // Booked blocks are not clickable — no event detail for users.
+      if (e.target.closest('.ubooked')) return;
+      var rect = track.getBoundingClientRect();
+      var frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      var mins = Math.round((dayStart + frac * (dayEnd - dayStart)) / 30) * 30;
+      var end = Math.min(mins + 60, dayEnd);
+      if (end - mins < 30) mins = end - 30;
+      window.location.href = '/bookings/create?room_id=' + track.dataset.roomId +
+        '&date=' + dateStr + '&timestart=' + fmt(mins) + '&timeend=' + fmt(end);
+    });
+  });
+})();
+</script>

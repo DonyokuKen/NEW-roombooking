@@ -37,10 +37,9 @@
           <% todayBookings.forEach(booking => { %>
             <div class="booking-item">
               <div class="booking-content">
-                <h3 class="booking-title"><%= booking.eventname %></h3>
+                <h3 class="booking-title">👤 <%= booking.namalengkap || '-' %></h3>
                 <div class="booking-meta">
                   <span class="booking-meta-item">⏰ <%= booking.timestart %> - <%= booking.timeend %></span>
-                  <span class="booking-meta-item">👤 <%= booking.namalengkap || '-' %></span>
                 </div>
               </div>
               <span class="badge badge-confirmed">Dikonfirmasi</span>

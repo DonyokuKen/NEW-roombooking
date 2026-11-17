@@ -136,12 +136,32 @@ app.get('/', async (req, res) => {
     const stats = await db.getBookingStats();
     const todayEvents = await db.getTodayEvents();
     const rooms = await db.getAllRooms({ status: 'A', limit: 6 });
-    
+
+    // User calendar: availability for the selected day (default today).
+    // Only confirmed/pending bookings block a slot; rejected/cancelled do not.
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : todayStr;
+    const shift = days => {
+      const d = new Date(date + 'T12:00:00');
+      d.setDate(d.getDate() + days);
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    };
+    const roomFilter = req.query.room || '';
+    const calRooms = await db.getAllRooms({ status: 'A' });
+    const allBookings = await db.getAllBookings({ date, limit: 1000, offset: 0 });
+    const calBookings = allBookings.filter(b => b.status === 'P' || b.status === 'A');
+    const label = new Date(date + 'T12:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
     res.render('index', {
       title: 'Dashboard - RoomBooking',
       stats,
       todayEvents,
-      rooms
+      rooms,
+      date, prevDate: shift(-1), nextDate: shift(1), todayStr,
+      label, calRooms, calBookings, roomFilter,
+      startHour: 7, endHour: 23
     });
   } catch (err) {
     console.error('Dashboard error:', err);
