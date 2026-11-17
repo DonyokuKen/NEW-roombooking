@@ -91,7 +91,7 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
     <span><i class="lg-A"></i>Dikonfirmasi</span>
     <span><i class="lg-P"></i>Menunggu persetujuan</span>
     <span><i class="lg-R"></i>Ditolak / dibatalkan</span>
-    <span>💡 Ketuk satu jam untuk booking, ketuk jam lain untuk tambah jam</span>
+    <span>💡 Ketuk satu jam untuk booking, ketuk jam lain untuk tambah jam, ketuk jam di dalam pilihan untuk kurangi jam</span>
     <span style="margin-left:auto"><%= bookings.length %> booking pada <%= label %></span>
   </div>
 </div>
@@ -256,6 +256,8 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
         var cell = d.anchor;
         if (cell < sel.start) sel.start = cell;
         else if (cell >= sel.end) sel.end = Math.min(cell + 60, dayEnd);
+        else if (cell === sel.start) sel.start = cell + 60; // tap first hour: drop it
+        else sel.end = cell; // tap any other hour inside: end the range here
         if (sel.end - sel.start < 30) sel.end = Math.min(sel.start + 30, dayEnd);
         updateModal();
         return;
