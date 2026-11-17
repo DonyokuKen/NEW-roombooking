@@ -28,4 +28,47 @@
       </form>
     </div>
   </div>
+
+  <!-- Equipment for this room -->
+  <div class="card" style="margin-top: 1.5rem;">
+    <div class="card-header">
+      <h2 class="card-title">Kelengkapan Ruangan</h2>
+    </div>
+    <div class="card-body">
+      <% if (equipment && equipment.length > 0) { %>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Nama Kelengkapan</th>
+                <th>Status</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% equipment.forEach(item => { %>
+                <tr>
+                  <td><%= item.NamaKelengkapan %></td>
+                  <td><span class="badge badge-<%= item.status === 'A' ? 'confirmed' : 'pending' %>"><%= item.status === 'A' ? 'Tersedia' : 'Tidak Tersedia' %></span></td>
+                  <td>
+                    <form method="POST" action="/admin/rooms/<%= room.id %>/equipment/<%= item.id %>/delete" style="display:inline;" onsubmit="return confirm('Hapus <%= item.NamaKelengkapan.replace(/'/g, "\\'") %> dari ruangan ini?');">
+                      <button type="submit" class="btn btn-sm btn-danger">Hapus</button>
+                    </form>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <p class="text-muted">Belum ada kelengkapan di ruangan ini.</p>
+      <% } %>
+      <form method="POST" action="/admin/rooms/<%= room.id %>/equipment" style="margin-top: 1rem;">
+        <div class="d-flex gap-2">
+          <input type="text" name="NamaKelengkapan" class="form-control" placeholder="Nama kelengkapan baru, contoh: Proyektor" required>
+          <button type="submit" class="btn btn-primary">+ Tambah</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>

@@ -1,6 +1,7 @@
 <%
 const roleLabel = r => ({ U: 'Pengguna', M: 'Manager', SU: 'Super Admin' }[r] || r);
-const qs = p => `/admin/users?page=${p}&search=${encodeURIComponent(search || '')}`;
+const qs = p => `/admin/users?page=${p}&search=${encodeURIComponent(search || '')}&dept=${encodeURIComponent(dept || '')}`;
+const isSU = typeof currentUser !== 'undefined' && currentUser && currentUser.isSuperAdmin;
 %>
 <div class="container-fluid" style="padding: 2.5rem 1.5rem;">
   <p class="text-muted mb-4"><%= total %> pengguna ditemukan</p>
@@ -9,6 +10,14 @@ const qs = p => `/admin/users?page=${p}&search=${encodeURIComponent(search || ''
     <div class="filters-row">
       <div class="form-group" style="flex: 1;">
         <input type="text" name="search" class="form-control" placeholder="Cari nama atau email..." value="<%= search || '' %>">
+      </div>
+      <div class="form-group">
+        <select name="dept" class="form-control">
+          <option value="">Semua Departemen</option>
+          <% (departments || []).forEach(d => { %>
+            <option value="<%= d.id %>" <%= String(dept) === String(d.id) ? 'selected' : '' %>><%= d.namadepartment %></option>
+          <% }) %>
+        </select>
       </div>
       <button type="submit" class="btn btn-primary">Cari</button>
     </div>
@@ -27,6 +36,7 @@ const qs = p => `/admin/users?page=${p}&search=${encodeURIComponent(search || ''
               <th>Departemen</th>
               <th>Peran</th>
               <th>Status</th>
+              <% if (isSU) { %><th>Aksi</th><% } %>
             </tr>
           </thead>
           <tbody>
@@ -39,6 +49,7 @@ const qs = p => `/admin/users?page=${p}&search=${encodeURIComponent(search || ''
                 <td><%= user.dept_name || user.dept || '-' %></td>
                 <td><%= roleLabel(user.roles) %></td>
                 <td><span class="badge badge-<%= user.userstatus === 'A' ? 'confirmed' : 'cancelled' %>"><%= user.userstatus === 'A' ? 'Aktif' : 'Nonaktif' %></span></td>
+                <% if (isSU) { %><td><a href="/admin/users/<%= user.id %>/edit" class="btn btn-sm btn-secondary">Edit</a></td><% } %>
               </tr>
             <% }) %>
           </tbody>

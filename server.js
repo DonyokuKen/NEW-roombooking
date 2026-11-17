@@ -9,6 +9,7 @@ const bcrypt = require('bcryptjs');
 const db = require('./lib/db');
 const notify = require('./lib/notify');
 const settings = require('./lib/settings');
+const merge = require('./lib/merge');
 
 const app = express();
 const PORT = process.env.PORT || 3100;
@@ -137,6 +138,19 @@ function requireAdmin(req, res, next) {
   if (!res.locals.currentUser.isAdmin) {
     setFlash(req, 'error', 'Anda tidak memiliki akses admin');
     return res.redirect('/');
+  }
+  next();
+}
+
+// Super admin only (roles SU): user editing with password reset.
+function requireSuperAdmin(req, res, next) {
+  if (!res.locals.currentUser) {
+    setFlash(req, 'error', 'Silakan login terlebih dahulu');
+    return res.redirect('/login');
+  }
+  if (!res.locals.currentUser.isSuperAdmin) {
+    setFlash(req, 'error', 'Hanya Super Admin yang dapat mengakses halaman ini');
+    return res.redirect('/admin/users');
   }
   next();
 }
@@ -1056,10 +1070,12 @@ app.get('/admin/rooms/:id/edit', requireAdmin, async (req, res) => {
       setFlash(req, 'error', 'Ruangan tidak ditemukan');
       return res.redirect('/admin/rooms');
     }
-    
+    const equipment = await db.getAllKelengkapan({ roomId: req.params.id });
+
     res.render('admin/rooms/edit', {
       title: 'Edit Ruangan',
-      room
+      room,
+      equipment
     });
   } catch (err) {
     console.error('Edit room page error:', err);
@@ -1105,16 +1121,129 @@ app.post('/admin/rooms/:id/delete', requireAdmin, async (req, res) => {
   }
 });
 
+// Add equipment to a room (from the Edit Ruangan page)
+app.post('/admin/rooms/:id/equipment', requireAdmin, async (req, res) => {
+  try {
+    const room = await db.getRoomById(req.params.id);
+    if (!room) {
+      setFlash(req, 'error', 'Ruangan tidak ditemukan');
+      return res.redirect('/admin/rooms');
+    }
+    const name = (req.body.NamaKelengkapan || '').trim();
+    if (!name) {
+      setFlash(req, 'error', 'Nama kelengkapan wajib diisi');
+      return res.redirect('/admin/rooms/' + req.params.id + '/edit');
+    }
+    await db.createKelengkapan({ idruangan: req.params.id, NamaKelengkapan: name, status: 'A' });
+    setFlash(req, 'success', `Kelengkapan "${name}" ditambahkan ke ${room.namaruangan}`);
+    res.redirect('/admin/rooms/' + req.params.id + '/edit');
+  } catch (err) {
+    console.error('Add room equipment error:', err);
+    setFlash(req, 'error', 'Terjadi kesalahan sistem');
+    res.redirect('/admin/rooms/' + req.params.id + '/edit');
+  }
+});
+
+// Remove equipment from a room (soft-delete, status='D')
+app.post('/admin/rooms/:id/equipment/:eqId/delete', requireAdmin, async (req, res) => {
+  try {
+    const item = await db.getKelengkapanById(req.params.eqId);
+    if (!item || String(item.idruangan) !== String(req.params.id)) {
+      setFlash(req, 'error', 'Kelengkapan tidak ditemukan di ruangan ini');
+      return res.redirect('/admin/rooms/' + req.params.id + '/edit');
+    }
+    await db.deleteKelengkapan(req.params.eqId);
+    setFlash(req, 'success', `Kelengkapan "${item.NamaKelengkapan}" dihapus dari ruangan`);
+    res.redirect('/admin/rooms/' + req.params.id + '/edit');
+  } catch (err) {
+    console.error('Delete room equipment error:', err);
+    setFlash(req, 'error', 'Terjadi kesalahan sistem');
+    res.redirect('/admin/rooms/' + req.params.id + '/edit');
+  }
+});
+
 // Admin departments (similar structure to rooms)
 app.get('/admin/departments', requireAdmin, async (req, res) => {
   try {
     const departments = await db.getAllDepartments({});
+    // Duplicate groups (same normalized name) with a preview: keeper =
+    // lowest id, losers, and how many members each row has. Members are
+    // users whose dept is the department id OR its name.
+    const duplicateGroups = merge.groupDepartmentDuplicates(departments);
+    const allUsers = await db.getAllUsers({});
+    const memberCount = {};
+    for (const d of departments) {
+      memberCount[d.id] = allUsers.filter(u =>
+        String(u.dept) === String(d.id) ||
+        merge.normalizeName(u.dept) === merge.normalizeName(d.namadepartment)
+      ).length;
+    }
     res.render('admin/departments/index', {
       title: 'Kelola Departemen',
-      departments
+      departments,
+      duplicateGroups,
+      memberCount
     });
   } catch (err) {
     console.error('Admin departments error:', err);
+    res.status(500).send('Server error');
+  }
+});
+
+// Merge one department duplicate group. Re-computed from live data first.
+app.post('/admin/departments/merge', requireAdmin, async (req, res) => {
+  try {
+    const keeperId = parseInt(req.body.keeperId, 10);
+    const loserIds = [...new Set(
+      (Array.isArray(req.body.loserIds) ? req.body.loserIds : [req.body.loserIds])
+        .map(v => parseInt(v, 10)).filter(n => !Number.isNaN(n))
+    )];
+    const departments = await db.getAllDepartments({});
+    const group = merge.groupDepartmentDuplicates(departments)
+      .find(g => g.keeper.id === keeperId);
+    const posted = [...loserIds].sort((a, b) => a - b);
+    const actual = group ? group.losers.map(l => l.id).sort((a, b) => a - b) : [];
+    if (!group || posted.length === 0 || JSON.stringify(posted) !== JSON.stringify(actual)) {
+      setFlash(req, 'error', 'Grup duplikat tidak ditemukan atau sudah berubah — muat ulang halaman dan coba lagi');
+      return res.redirect('/admin/departments');
+    }
+    const stats = await db.withTransaction(q => merge.mergeDepartmentGroup(q, group.keeper, group.losers));
+    setFlash(req, 'success',
+      `Digabung: "${group.keeper.namadepartment}" (id ${keeperId}) dipertahankan, ${stats.losersDeleted} duplikat dihapus. ` +
+      `${stats.usersById} pengguna (dept id) dan ${stats.usersByName} pengguna (dept nama) dialihkan, ${stats.treventsByName} booking dialihkan. Semua pengguna tetap ada.`);
+    res.redirect('/admin/departments');
+  } catch (err) {
+    console.error('Merge department error:', err);
+    setFlash(req, 'error', 'Gagal menggabung: ' + err.message);
+    res.redirect('/admin/departments');
+  }
+});
+
+// Department detail: members (dept = id OR name) + booking count.
+app.get('/admin/departments/:id', requireAdmin, async (req, res) => {
+  try {
+    const department = await db.getDepartmentById(req.params.id);
+    if (!department) {
+      setFlash(req, 'error', 'Departemen tidak ditemukan');
+      return res.redirect('/admin/departments');
+    }
+    const allUsers = await db.getAllUsers({});
+    const members = allUsers.filter(u =>
+      String(u.dept) === String(department.id) ||
+      merge.normalizeName(u.dept) === merge.normalizeName(department.namadepartment)
+    );
+    const bookings = await db.getAllBookings({ limit: 10000, offset: 0 });
+    const bookingCount = bookings.filter(b =>
+      merge.normalizeName(b.department) === merge.normalizeName(department.namadepartment)
+    ).length;
+    res.render('admin/departments/show', {
+      title: department.namadepartment,
+      department,
+      members,
+      bookingCount
+    });
+  } catch (err) {
+    console.error('Admin department detail error:', err);
     res.status(500).send('Server error');
   }
 });
@@ -1124,14 +1253,51 @@ app.get('/admin/equipment', requireAdmin, async (req, res) => {
   try {
     const equipment = await db.getAllKelengkapan({});
     const rooms = await db.getAllRooms({ status: 'A' });
+    // Duplicate groups (same normalized name within the same room) with a
+    // preview: keeper = lowest id, losers, and how many bookings reference
+    // each row. Same names in different rooms are NOT duplicates.
+    const duplicateGroups = merge.groupEquipmentDuplicates(equipment);
+    const refCounts = merge.countEquipmentReferences(await db.getBookingEquipmentRefs());
     res.render('admin/equipment/index', {
       title: 'Kelola Kelengkapan',
       equipment,
-      rooms
+      rooms,
+      duplicateGroups,
+      refCounts
     });
   } catch (err) {
     console.error('Admin equipment error:', err);
     res.status(500).send('Server error');
+  }
+});
+
+// Merge one equipment duplicate group. The group is re-computed from the
+// live data — the posted ids are verified against it, never trusted blindly.
+app.post('/admin/equipment/merge', requireAdmin, async (req, res) => {
+  try {
+    const keeperId = parseInt(req.body.keeperId, 10);
+    const loserIds = [...new Set(
+      (Array.isArray(req.body.loserIds) ? req.body.loserIds : [req.body.loserIds])
+        .map(v => parseInt(v, 10)).filter(n => !Number.isNaN(n))
+    )];
+    const equipment = await db.getAllKelengkapan({});
+    const group = merge.groupEquipmentDuplicates(equipment)
+      .find(g => g.keeper.id === keeperId);
+    const posted = [...loserIds].sort((a, b) => a - b);
+    const actual = group ? group.losers.map(l => l.id).sort((a, b) => a - b) : [];
+    if (!group || posted.length === 0 || JSON.stringify(posted) !== JSON.stringify(actual)) {
+      setFlash(req, 'error', 'Grup duplikat tidak ditemukan atau sudah berubah — muat ulang halaman dan coba lagi');
+      return res.redirect('/admin/equipment');
+    }
+    const stats = await db.withTransaction(q => merge.mergeEquipmentGroup(q, keeperId, loserIds));
+    setFlash(req, 'success',
+      `Digabung: "${group.keeper.NamaKelengkapan}" (id ${keeperId}) dipertahankan, ${stats.losersDeleted} duplikat dihapus. ` +
+      `${stats.rewrittenRefs} referensi booking dari ${stats.rewrittenBookings} booking dialihkan ke id ${keeperId}.`);
+    res.redirect('/admin/equipment');
+  } catch (err) {
+    console.error('Merge equipment error:', err);
+    setFlash(req, 'error', 'Gagal menggabung: ' + err.message);
+    res.redirect('/admin/equipment');
   }
 });
 
@@ -1141,31 +1307,128 @@ app.get('/admin/users', requireAdmin, async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const perPage = 20;
     const search = req.query.search || '';
-    
+    const dept = req.query.dept || '';
+    const departments = await db.getAllDepartments({ status: 'A' });
+
     const filters = {
       search,
       limit: perPage,
       offset: (page - 1) * perPage
     };
-    
+    // Department filter: match users.dept = department id OR department
+    // name (users.dept is varchar: usually an id, sometimes a plain name).
+    if (dept) {
+      const deptRow = departments.find(d => String(d.id) === String(dept));
+      if (deptRow) {
+        filters.dept = deptRow.id;
+        filters.deptName = deptRow.namadepartment;
+      } else {
+        filters.dept = dept;
+      }
+    }
+
     const [users, total] = await Promise.all([
       db.getAllUsers(filters),
       db.countUsers(filters)
     ]);
-    
+
     const totalPages = Math.ceil(total / perPage);
-    
+
     res.render('admin/users/index', {
       title: 'Kelola Pengguna',
       users,
       page,
       totalPages,
       total,
-      search
+      search,
+      dept,
+      departments
     });
   } catch (err) {
     console.error('Admin users error:', err);
     res.status(500).send('Server error');
+  }
+});
+
+// Edit user page — Super Admin only.
+app.get('/admin/users/:id/edit', requireSuperAdmin, async (req, res) => {
+  try {
+    const user = await db.findUserByIdAny(req.params.id);
+    if (!user) {
+      setFlash(req, 'error', 'Pengguna tidak ditemukan');
+      return res.redirect('/admin/users');
+    }
+    const departments = await db.getAllDepartments({ status: 'A' });
+    // Label for the user's current dept in the dropdown: the active
+    // department name when it matches, otherwise the raw stored value
+    // (an id of a deleted department, or a plain name).
+    const currentDept = String(user.dept || '');
+    const activeMatch = departments.find(d => String(d.id) === currentDept);
+    const currentDeptLabel = activeMatch
+      ? activeMatch.namadepartment
+      : (currentDept ? (/^[0-9]+$/.test(currentDept) ? `Departemen #${currentDept} (tidak aktif)` : currentDept) : '-');
+    res.render('admin/users/edit', {
+      title: 'Edit Pengguna',
+      editUser: user,
+      departments,
+      currentDeptLabel
+    });
+  } catch (err) {
+    console.error('Edit user page error:', err);
+    res.status(500).send('Server error');
+  }
+});
+
+// Update user — Super Admin only. Empty password field keeps the current
+// password; a filled one is bcrypt-hashed before saving.
+app.post('/admin/users/:id/edit', requireSuperAdmin, async (req, res) => {
+  try {
+    const user = await db.findUserByIdAny(req.params.id);
+    if (!user) {
+      setFlash(req, 'error', 'Pengguna tidak ditemukan');
+      return res.redirect('/admin/users');
+    }
+    const { namalengkap, email, notelp, gender, dept, roles, userstatus, password } = req.body;
+    if (!namalengkap || !email) {
+      setFlash(req, 'error', 'Nama lengkap dan email wajib diisi');
+      return res.redirect('/admin/users/' + req.params.id + '/edit');
+    }
+    if (!['U', 'M', 'SU'].includes(roles)) {
+      setFlash(req, 'error', 'Peran tidak valid');
+      return res.redirect('/admin/users/' + req.params.id + '/edit');
+    }
+    if (!['A', 'N'].includes(userstatus)) {
+      setFlash(req, 'error', 'Status tidak valid');
+      return res.redirect('/admin/users/' + req.params.id + '/edit');
+    }
+    // A super admin cannot demote or deactivate their own account.
+    if (String(user.id) === String(res.locals.currentUser.id) && (roles !== 'SU' || userstatus !== 'A')) {
+      setFlash(req, 'error', 'Tidak dapat mengubah peran atau status akun sendiri');
+      return res.redirect('/admin/users/' + req.params.id + '/edit');
+    }
+    // Email must stay unique.
+    if (email !== user.email) {
+      const existing = await db.findUserByEmail(email);
+      if (existing && String(existing.id) !== String(user.id)) {
+        setFlash(req, 'error', 'Email sudah dipakai pengguna lain');
+        return res.redirect('/admin/users/' + req.params.id + '/edit');
+      }
+    }
+    const data = { namalengkap, email, notelp: notelp || '', gender: gender || 'L', dept: dept || '', roles, userstatus };
+    if (password) {
+      if (password.length < 6) {
+        setFlash(req, 'error', 'Password baru minimal 6 karakter');
+        return res.redirect('/admin/users/' + req.params.id + '/edit');
+      }
+      data.password = await bcrypt.hash(password, 10);
+    }
+    await db.updateUser(req.params.id, data);
+    setFlash(req, 'success', `Pengguna "${namalengkap}" berhasil diupdate` + (password ? ' (password direset)' : ''));
+    res.redirect('/admin/users');
+  } catch (err) {
+    console.error('Update user error:', err);
+    setFlash(req, 'error', 'Terjadi kesalahan sistem');
+    res.redirect('/admin/users/' + req.params.id + '/edit');
   }
 });
 

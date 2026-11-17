@@ -1,6 +1,7 @@
 <%
 const eqStatus = s => s === 'A' ? ['Tersedia', 'confirmed'] : (s === 'D' ? ['Dihapus', 'cancelled'] : ['Tidak Tersedia', 'pending']);
 const roomName = id => { const r = (rooms || []).find(r => String(r.id) === String(id)); return r ? r.namaruangan : null; };
+const roomLabel = g => g.roomId === null || g.roomId === undefined ? 'Tanpa Ruangan' : (roomName(g.roomId) || ('Ruangan #' + g.roomId));
 const groups = {};
 (equipment || []).forEach(item => {
   const key = item.namaruangan || roomName(item.idruangan) || 'Tanpa Ruangan';
@@ -11,6 +12,31 @@ const groupNames = Object.keys(groups).sort();
 %>
 <div class="container-fluid" style="padding: 2.5rem 1.5rem;">
   <p class="text-muted mb-4"><%= equipment.length %> kelengkapan ditemukan</p>
+
+  <% if (duplicateGroups && duplicateGroups.length > 0) { %>
+    <div class="card mb-4" style="border: 2px solid #f59e0b;">
+      <div class="card-header">
+        <h2 class="card-title">⚠️ Duplikat ditemukan — <%= duplicateGroups.length %> grup</h2>
+      </div>
+      <div class="card-body">
+        <p class="text-muted">Nama yang sama di ruangan yang sama. Yang dipertahankan adalah id paling kecil; semua booking yang menyebut duplikat akan dialihkan ke id tersebut, lalu duplikatnya dihapus (soft-delete). Nama yang sama di ruangan berbeda <strong>bukan</strong> duplikat dan tidak digabung.</p>
+        <% duplicateGroups.forEach(g => { %>
+          <div style="border-top: 1px solid var(--border); padding: 1rem 0;">
+            <p><strong><%= roomLabel(g) %></strong> — “<%= g.keeper.NamaKelengkapan %>”</p>
+            <p>✅ Dipertahankan: id <%= g.keeper.id %> “<%= g.keeper.NamaKelengkapan %>” (<%= eqStatus(g.keeper.status)[0] %>, dipakai <%= refCounts[g.keeper.id] || 0 %> booking)</p>
+            <% g.losers.forEach(l => { %>
+              <p>❌ Dihapus: id <%= l.id %> “<%= l.NamaKelengkapan %>” (<%= eqStatus(l.status)[0] %>, dipakai <%= refCounts[l.id] || 0 %> booking)</p>
+            <% }) %>
+            <form method="POST" action="/admin/equipment/merge" onsubmit="return confirm('Gabung <%= g.losers.length %> duplikat ke id <%= g.keeper.id %>? <%= g.losers.reduce((n, l) => n + (refCounts[l.id] || 0), 0) %> referensi booking akan dialihkan.');">
+              <input type="hidden" name="keeperId" value="<%= g.keeper.id %>">
+              <% g.losers.forEach(l => { %><input type="hidden" name="loserIds" value="<%= l.id %>"><% }) %>
+              <button type="submit" class="btn btn-primary">Gabung duplikat ini</button>
+            </form>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  <% } %>
 
   <% if (equipment && equipment.length > 0) { %>
     <% groupNames.forEach(name => { %>

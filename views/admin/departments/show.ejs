@@ -1,0 +1,48 @@
+<%
+const roleLabel = r => ({ U: 'Pengguna', M: 'Manager', SU: 'Super Admin' }[r] || r);
+%>
+<div class="container-fluid" style="padding: 2.5rem 1.5rem;">
+  <p><a href="/admin/departments">&laquo; Semua Departemen</a></p>
+  <h2 class="mb-3">🏛️ <%= department.namadepartment %></h2>
+  <p class="text-muted mb-4">
+    <%= members.length %> anggota
+    · <%= bookingCount %> booking
+    · Status: <%= department.status === 'A' ? 'Aktif' : (department.status === 'D' ? 'Dihapus' : 'Nonaktif') %>
+    <% if (department.deskripsi) { %> · <%= department.deskripsi %><% } %>
+  </p>
+
+  <% if (members && members.length > 0) { %>
+    <div class="card">
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Nama Lengkap</th>
+              <th>Email</th>
+              <th>No. Telepon</th>
+              <th>Peran</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% members.forEach(user => { %>
+              <tr>
+                <td><%= user.namalengkap %></td>
+                <td><%= user.email %></td>
+                <td><%= user.notelp || '-' %></td>
+                <td><%= roleLabel(user.roles) %></td>
+                <td><span class="badge badge-<%= user.userstatus === 'A' ? 'confirmed' : 'cancelled' %>"><%= user.userstatus === 'A' ? 'Aktif' : 'Nonaktif' %></span></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  <% } else { %>
+    <div class="empty-state">
+      <div class="empty-state-icon">👥</div>
+      <h2 class="empty-state-title">Belum ada anggota</h2>
+      <p class="empty-state-text">Tidak ada pengguna di departemen ini.</p>
+    </div>
+  <% } %>
+</div>
