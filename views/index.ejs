@@ -21,34 +21,7 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
 const loggedIn = typeof currentUser !== 'undefined' && currentUser;
 %>
 
-<div class="hero">
-  <div class="container">
-    <span class="eyebrow">Sistem Booking Ruangan</span>
-    <h1 class="hero-title">Kelola <span class="highlight">Booking</span> dengan Mudah</h1>
-    <p class="hero-subtitle">Platform modern untuk reservasi ruangan yang efisien dan terorganisir</p>
-  </div>
-</div>
-
 <div class="container">
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-value"><%= stats.total %></div>
-      <div class="stat-label">Total Booking</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-value"><%= stats.pending %></div>
-      <div class="stat-label">Menunggu Approval</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-value"><%= stats.accepted %></div>
-      <div class="stat-label">Dikonfirmasi</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-value"><%= stats.today %></div>
-      <div class="stat-label">Booking Hari Ini</div>
-    </div>
-  </div>
-
   <h2 class="mt-4 mb-3">Kalender Ruangan</h2>
   <div class="cal-toolbar">
     <form method="GET" action="/" class="cal-filter">
@@ -110,35 +83,6 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
       <span><i style="background: repeating-linear-gradient(45deg, rgba(120, 128, 145, 0.28) 0 6px, transparent 6px 12px), repeating-linear-gradient(-45deg, rgba(120, 128, 145, 0.28) 0 6px, transparent 6px 12px), #e3e5ea; border: 1px solid #c3c7d0;"></i>Sudah dibooking</span>
       <span>💡 Ketuk jam yang kosong untuk booking ruangan itu</span>
     </div>
-  </div>
-
-  <% if (rooms && rooms.length > 0) { %>
-    <h2 class="mt-4 mb-3">Ruangan Populer</h2>
-    <div class="grid grid-3">
-      <% rooms.forEach(room => { %>
-        <div class="room-card">
-          <div class="room-card-image">🏢</div>
-          <div class="room-card-body">
-            <h3 class="room-card-title"><%= room.namaruangan %></h3>
-            <p class="room-card-desc"><%= room.description || 'Ruangan tersedia untuk booking' %></p>
-            <div class="room-card-footer">
-              <span class="badge badge-<%= room.status === 'A' ? 'confirmed' : 'pending' %>">
-                <%= room.status === 'A' ? 'Tersedia' : 'Tidak Tersedia' %>
-              </span>
-              <a href="/rooms/<%= room.id %>" class="btn btn-sm btn-primary">Lihat Detail</a>
-            </div>
-          </div>
-        </div>
-      <% }) %>
-    </div>
-  <% } %>
-
-  <div class="text-center mt-4">
-    <% if (currentUser) { %>
-      <a href="/bookings/create" class="btn btn-primary btn-lg">Buat Booking Baru</a>
-    <% } else { %>
-      <a href="/login" class="btn btn-primary btn-lg">Login untuk Booking</a>
-    <% } %>
   </div>
 </div>
 

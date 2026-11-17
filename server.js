@@ -133,10 +133,6 @@ function requireAdmin(req, res, next) {
 // Home/Dashboard
 app.get('/', async (req, res) => {
   try {
-    const stats = await db.getBookingStats();
-    const todayEvents = await db.getTodayEvents();
-    const rooms = await db.getAllRooms({ status: 'A', limit: 6 });
-
     // User calendar: availability for the selected day (default today).
     // Only confirmed/pending bookings block a slot; rejected/cancelled do not.
     const now = new Date();
@@ -156,9 +152,6 @@ app.get('/', async (req, res) => {
 
     res.render('index', {
       title: 'Dashboard - RoomBooking',
-      stats,
-      todayEvents,
-      rooms,
       date, prevDate: shift(-1), nextDate: shift(1), todayStr,
       label, calRooms, calBookings, roomFilter,
       startHour: 7, endHour: 23
