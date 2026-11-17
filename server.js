@@ -1791,19 +1791,28 @@ app.get('/admin/settings', requireAdmin, (req, res) => {
 app.post('/admin/settings', requireAdmin, (req, res) => {
   try {
     const days = settings.saveBookingWindowDays(req.body.bookingWindowDays);
-    // Email reset: the checkbox is only present in the body when ticked.
-    // A blank SMTP password keeps the stored one (never rendered to the
-    // page, never overwritten by an empty field).
-    const email = settings.saveEmailSettings({
-      emailResetEnabled: req.body.emailResetEnabled === 'on',
-      smtpHost: req.body.smtpHost,
-      smtpPort: req.body.smtpPort,
-      smtpUser: req.body.smtpUser,
-      smtpPass: req.body.smtpPass ? req.body.smtpPass : undefined
-    });
+    // The two settings cards are separate forms: the booking-window form
+    // posts only bookingWindowDays, while the email form posts the SMTP
+    // fields too. Only touch the email settings when the email form was
+    // submitted — otherwise a window-only save would fail validation on
+    // the missing SMTP port and flash a false error (the window itself
+    // was already saved by then).
+    let emailNote = '';
+    if (req.body.smtpPort !== undefined) {
+      // Email reset: the checkbox is only present in the body when ticked.
+      // A blank SMTP password keeps the stored one (never rendered to the
+      // page, never overwritten by an empty field).
+      const email = settings.saveEmailSettings({
+        emailResetEnabled: req.body.emailResetEnabled === 'on',
+        smtpHost: req.body.smtpHost,
+        smtpPort: req.body.smtpPort,
+        smtpUser: req.body.smtpUser,
+        smtpPass: req.body.smtpPass ? req.body.smtpPass : undefined
+      });
+      emailNote = ` Reset password lewat email: ${email.emailResetEnabled ? 'aktif' : 'tidak aktif'}.`;
+    }
     setFlash(req, 'success',
-      `Pengaturan disimpan. Pengguna biasa sekarang harus booking minimal ${days} hari sebelum acara. ` +
-      `Reset password lewat email: ${email.emailResetEnabled ? 'aktif' : 'tidak aktif'}.`);
+      `Pengaturan disimpan. Pengguna biasa sekarang harus booking minimal ${days} hari sebelum acara.` + emailNote);
   } catch (err) {
     setFlash(req, 'error', err.message);
   }
