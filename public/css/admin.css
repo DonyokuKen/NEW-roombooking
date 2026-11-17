@@ -763,13 +763,6 @@ body.admin-body {
   pointer-events: auto;
 }
 
-#n-chips {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  justify-content: flex-end;
-}
-
 .cal-block {
   position: absolute;
   top: 9px;
@@ -955,42 +948,6 @@ body.admin-body {
   opacity: 0.35;
   cursor: default;
   color: var(--adm-muted);
-}
-
-.cal-time-input {
-  border: 1px solid var(--adm-border);
-  border-radius: 10px;
-  padding: 6px 8px;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--adm-ink);
-  width: 96px;
-  text-align: center;
-  background: #fff;
-}
-
-.cal-chip {
-  border: 1px solid var(--adm-border);
-  background: #fff;
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--adm-ink-2);
-  cursor: pointer;
-  margin-left: 0;
-  white-space: nowrap;
-}
-
-.cal-chip:first-child {
-  margin-left: 0;
-}
-
-.cal-chip.on {
-  background: var(--adm-blue);
-  border-color: var(--adm-blue);
-  color: #fff;
 }
 
 .btn-approve {

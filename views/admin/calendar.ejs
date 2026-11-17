@@ -91,7 +91,7 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
     <span><i class="lg-A"></i>Dikonfirmasi</span>
     <span><i class="lg-P"></i>Menunggu persetujuan</span>
     <span><i class="lg-R"></i>Ditolak / dibatalkan</span>
-    <span>💡 Seret di jadwal untuk pilih beberapa jam — klik untuk 1 jam</span>
+    <span>💡 Ketuk satu jam untuk booking, ketuk jam lain untuk tambah jam</span>
     <span style="margin-left:auto"><%= bookings.length %> booking pada <%= label %></span>
   </div>
 </div>
@@ -120,17 +120,17 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
   </div>
 </div>
 
-<!-- New-booking modal (click an empty slot) -->
+<!-- New-booking popup: small confirm — tap more cells to add hours -->
 <div class="cal-modal-backdrop" id="cal-new-modal">
   <div class="cal-modal">
     <button type="button" class="cal-modal-close" id="cal-new-close">✕</button>
-    <h3>Booking Baru</h3>
+    <h3>Booking this room?</h3>
     <div class="m-sub" id="n-room">-</div>
     <div class="m-row"><span>Tanggal</span><span><%= label %></span></div>
-    <div class="m-row"><span>Waktu</span><span><input type="time" id="n-start" class="cal-time-input" step="1800"> – <input type="time" id="n-end" class="cal-time-input" step="1800"></span></div>
-    <div class="m-row"><span>Durasi</span><span id="n-chips"><button type="button" class="cal-chip" data-hours="0.5">30 mnt</button><button type="button" class="cal-chip" data-hours="1">1 jam</button><button type="button" class="cal-chip" data-hours="1.5">1,5 jam</button><button type="button" class="cal-chip" data-hours="2">2 jam</button><button type="button" class="cal-chip" data-hours="3">3 jam</button><button type="button" class="cal-chip" data-hours="4">4 jam</button></span></div>
+    <div class="m-row"><span>Waktu</span><span id="n-time">-</span></div>
     <div class="m-actions">
-      <a class="btn btn-primary" id="n-go" href="#" style="flex:1">Buat Booking →</a>
+      <button type="button" class="btn btn-secondary" id="n-cancel" style="flex:1">Batal</button>
+      <a class="btn btn-primary" id="n-go" href="#" style="flex:1">Ya, Booking →</a>
     </div>
   </div>
 </div>
@@ -165,10 +165,9 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
   });
 })();
 
-// Drag across one room's track to select several hours (the selection
-// stays in the room where the drag started — it can't cross rooms).
-// A plain click/tap still books 1 hour. The range can also be picked in
-// the modal: one-tap duration chips (1/2/3/4 jam) or the time pickers.
+// Tap one cell to pick an hour (grey) and ask "Booking this room?";
+// tap more cells on the same room to add hours. Drag selects a range.
+// The popup stays small — the booking form opens only on confirm.
 (function () {
   var backdrop = document.getElementById('cal-new-modal');
   var closeBtn = document.getElementById('cal-new-close');
@@ -201,22 +200,13 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
   function hideSel(track) {
     track.querySelector('.cal-select').classList.remove('on', 'grey');
   }
-  function parseTime(v) {
-    var m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(v || '');
-    return m ? (+m[1]) * 60 + (+m[2]) : null;
-  }
   function updateModal() {
     document.getElementById('n-room').textContent = sel.roomName;
-    document.getElementById('n-start').value = fmt(sel.start);
-    document.getElementById('n-end').value = fmt(sel.end);
+    document.getElementById('n-time').textContent = fmt(sel.start) + ' - ' + fmt(sel.end);
     document.getElementById('n-go').href = '/bookings/create?room_id=' + sel.roomId +
       '&date=' + dateStr + '&timestart=' + fmt(sel.start) + '&timeend=' + fmt(sel.end);
-    var dur = sel.end - sel.start;
-    document.querySelectorAll('#n-chips .cal-chip').forEach(function (chip) {
-      chip.classList.toggle('on', dur === (+chip.dataset.hours) * 60);
-    });
     // Keep the chosen slot visible on the calendar behind the popup (grey),
-    // moving live as the time changes in the card.
+    // moving live as the time changes.
     if (sel.track) showSel(sel.track, sel.start, sel.end, true);
   }
   function openModal() {
@@ -236,31 +226,13 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
     if (e.target === backdrop && Date.now() - openedAt > 400) close();
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
-  // One tap sets the whole duration; the time pickers allow any start/end.
-  document.querySelectorAll('#n-chips .cal-chip').forEach(function (chip) {
-    chip.addEventListener('click', function () {
-      if (!sel) return;
-      sel.end = Math.min(sel.start + (+chip.dataset.hours) * 60, dayEnd);
-      updateModal();
-    });
-  });
-  function readTimes() {
-    if (!sel) return;
-    var s = parseTime(document.getElementById('n-start').value);
-    var e = parseTime(document.getElementById('n-end').value);
-    if (s !== null) sel.start = Math.max(dayStart, Math.min(s, dayEnd - 30));
-    if (e !== null) sel.end = Math.max(dayStart + 30, Math.min(e, dayEnd));
-    if (sel.end - sel.start < 30) sel.end = Math.min(sel.start + 30, dayEnd);
-    if (sel.end - sel.start < 30) sel.start = sel.end - 30;
-    updateModal();
-  }
-  document.getElementById('n-start').addEventListener('change', readTimes);
-  document.getElementById('n-end').addEventListener('change', readTimes);
+  document.getElementById('n-cancel').addEventListener('click', close);
 
   document.querySelectorAll('.cal-track').forEach(function (track) {
     track.addEventListener('pointerdown', function (e) {
       if (e.target.closest('.cal-block')) return;
-      hideSel(track);
+      // Clear the previous selection's grey box (it may be on another room).
+      if (sel && sel.track) hideSel(sel.track);
       drag = { track: track, anchor: minsAt(track, e.clientX), startX: e.clientX, moved: false };
       if (e.pointerType === 'mouse' || e.pointerType === 'pen') {
         try { track.setPointerCapture(e.pointerId); } catch (_) {}
@@ -278,6 +250,16 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
       var d = drag; drag = null;
       hideSel(track);
       if (cancelled) return;
+      // Popup already open + tap (not drag) on the same room: extend the
+      // grey range with the tapped hour instead of starting over.
+      if (!d.moved && sel && sel.track === track && backdrop.classList.contains('open')) {
+        var cell = d.anchor;
+        if (cell < sel.start) sel.start = cell;
+        else if (cell >= sel.end) sel.end = Math.min(cell + 60, dayEnd);
+        if (sel.end - sel.start < 30) sel.end = Math.min(sel.start + 30, dayEnd);
+        updateModal();
+        return;
+      }
       var start, end;
       if (d.moved) {
         var cur = minsAt(track, e.clientX);
