@@ -128,7 +128,7 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
     <div class="m-sub" id="n-room">-</div>
     <div class="m-row"><span>Tanggal</span><span><%= label %></span></div>
     <div class="m-row"><span>Waktu</span><span><input type="time" id="n-start" class="cal-time-input" step="1800"> – <input type="time" id="n-end" class="cal-time-input" step="1800"></span></div>
-    <div class="m-row"><span>Durasi</span><span id="n-chips"><button type="button" class="cal-chip" data-hours="1">1 jam</button><button type="button" class="cal-chip" data-hours="2">2 jam</button><button type="button" class="cal-chip" data-hours="3">3 jam</button><button type="button" class="cal-chip" data-hours="4">4 jam</button></span></div>
+    <div class="m-row"><span>Durasi</span><span id="n-chips"><button type="button" class="cal-chip" data-hours="0.5">30 mnt</button><button type="button" class="cal-chip" data-hours="1">1 jam</button><button type="button" class="cal-chip" data-hours="1.5">1,5 jam</button><button type="button" class="cal-chip" data-hours="2">2 jam</button><button type="button" class="cal-chip" data-hours="3">3 jam</button><button type="button" class="cal-chip" data-hours="4">4 jam</button></span></div>
     <div class="m-actions">
       <a class="btn btn-primary" id="n-go" href="#" style="flex:1">Buat Booking →</a>
     </div>
@@ -189,16 +189,17 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
     frac = Math.max(0, Math.min(1, frac));
     return Math.round((dayStart + frac * (dayEnd - dayStart)) / 30) * 30;
   }
-  function showSel(track, a, b) {
+  function showSel(track, a, b, grey) {
     var el = track.querySelector('.cal-select');
     var lo = Math.min(a, b), hi = Math.max(a, b);
     if (hi - lo < 30) hi = lo + 30;
     el.style.left = ((lo - dayStart) / (dayEnd - dayStart) * 100) + '%';
     el.style.width = ((hi - lo) / (dayEnd - dayStart) * 100) + '%';
     el.classList.add('on');
+    el.classList.toggle('grey', !!grey);
   }
   function hideSel(track) {
-    track.querySelector('.cal-select').classList.remove('on');
+    track.querySelector('.cal-select').classList.remove('on', 'grey');
   }
   function parseTime(v) {
     var m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(v || '');
@@ -214,13 +215,19 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
     document.querySelectorAll('#n-chips .cal-chip').forEach(function (chip) {
       chip.classList.toggle('on', dur === (+chip.dataset.hours) * 60);
     });
+    // Keep the chosen slot visible on the calendar behind the popup (grey),
+    // moving live as the time changes in the card.
+    if (sel.track) showSel(sel.track, sel.start, sel.end, true);
   }
   function openModal() {
     updateModal();
     backdrop.classList.add('open');
     openedAt = Date.now();
   }
-  function close() { backdrop.classList.remove('open'); }
+  function close() {
+    backdrop.classList.remove('open');
+    if (sel && sel.track) hideSel(sel.track);
+  }
   closeBtn.addEventListener('click', close);
   backdrop.addEventListener('click', function (e) {
     // A touch tap opens the modal on pointerup, then the browser fires a
@@ -253,6 +260,7 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
   document.querySelectorAll('.cal-track').forEach(function (track) {
     track.addEventListener('pointerdown', function (e) {
       if (e.target.closest('.cal-block')) return;
+      hideSel(track);
       drag = { track: track, anchor: minsAt(track, e.clientX), startX: e.clientX, moved: false };
       if (e.pointerType === 'mouse' || e.pointerType === 'pen') {
         try { track.setPointerCapture(e.pointerId); } catch (_) {}
@@ -282,7 +290,7 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
         end = Math.min(start + 60, dayEnd);
         if (end - start < 30) start = end - 30;
       }
-      sel = { roomId: track.dataset.roomId, roomName: track.dataset.roomName, start: start, end: end };
+      sel = { roomId: track.dataset.roomId, roomName: track.dataset.roomName, track: track, start: start, end: end };
       openModal();
     }
     track.addEventListener('pointerup', function (e) { finish(e, false); });

@@ -748,6 +748,28 @@ body.admin-body {
   display: block;
 }
 
+.cal-select.grey {
+  background: rgba(138, 144, 163, 0.35);
+  border-color: #8A90A3;
+}
+
+/* New-booking popup: lighter veil, calendar stays tappable behind it */
+#cal-new-modal {
+  background: rgba(23, 26, 38, 0.28);
+  pointer-events: none;
+}
+
+#cal-new-modal .cal-modal {
+  pointer-events: auto;
+}
+
+#n-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
 .cal-block {
   position: absolute;
   top: 9px;
@@ -957,7 +979,7 @@ body.admin-body {
   font-weight: 700;
   color: var(--adm-ink-2);
   cursor: pointer;
-  margin-left: 6px;
+  margin-left: 0;
   white-space: nowrap;
 }
 
