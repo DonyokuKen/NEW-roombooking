@@ -857,13 +857,14 @@ table tbody tr:last-child td {
 
   /* Calendar: keep the room column pinned while the hours scroll sideways,
      same as the admin calendar — otherwise the room names slide off and
-     the rows can't be told apart. */
+     the rows can't be told apart. z-index must stay above .cal-select (3),
+     or a scrolled selection paints over the room names. */
   .cal-room-col {
     width: 132px;
     position: sticky;
     left: 0;
     background: var(--surface);
-    z-index: 3;
+    z-index: 4;
   }
 
   .cal-head .cal-room-col {

@@ -1053,7 +1053,7 @@ body.admin-body {
     position: sticky;
     left: 0;
     background: #fff;
-    z-index: 3;
+    z-index: 4; /* above .cal-select (3): a scrolled selection must slide under the pinned column, not over the room names */
   }
 
   .cal-head .cal-room-col {
