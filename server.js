@@ -429,8 +429,11 @@ app.put('/api/notifications/:id/deliver', requireAuth, async (req, res) => {
 app.get('/bookings/create', requireAuth, async (req, res) => {
   try {
     const rooms = await db.getAllRooms({ status: 'A' });
-    const departments = await db.getAllDepartments({ status: 'A' });
-    const users = await db.getAllUsers({ status: 'A' });
+    // Department picker + participant picker are admin-only: don't even
+    // fetch those lists for regular users. They book under their own dept.
+    const isAdmin = res.locals.currentUser.isAdmin;
+    const departments = isAdmin ? await db.getAllDepartments({ status: 'A' }) : [];
+    const users = isAdmin ? await db.getAllUsers({ status: 'A' }) : [];
     const selectedRoomId = req.query.room_id || null;
 
     // Prefill from calendar click-to-book (validated, else ignored)
@@ -476,8 +479,13 @@ app.post('/bookings', requireAuth, async (req, res) => {
       associated_users
     } = req.body;
     
-    // Validation
-    if (!room_id || !date || !timestart || !timeend || !eventname || !eventpeoplequantity || !department) {
+    // Department picker + participant picker are admin-only (same as the
+    // old Laravel app): regular users book under their own department and
+    // cannot attach participants, even via a crafted request.
+    const isAdmin = res.locals.currentUser.isAdmin;
+
+    // Validation (department is only required when the admin picks one)
+    if (!room_id || !date || !timestart || !timeend || !eventname || !eventpeoplequantity || (isAdmin && !department)) {
       setFlash(req, 'error', 'Semua field wajib diisi');
       return res.redirect('/bookings/create');
     }
@@ -527,11 +535,11 @@ app.post('/bookings', requireAuth, async (req, res) => {
       eventdescription: eventdescription || '-',
       eventpeoplequantity,
       kelengkapanruangan: kelengkapanStr,
-      department: department || null
+      department: isAdmin ? (department || null) : (res.locals.currentUser.dept || null)
     });
-    
-    // Add associated users
-    if (associated_users && Array.isArray(associated_users)) {
+
+    // Add associated users (admins only)
+    if (isAdmin && associated_users && Array.isArray(associated_users)) {
       for (const userId of associated_users) {
         await db.addBookingUser(bookingId, userId);
       }
@@ -602,7 +610,8 @@ app.get('/bookings/:id/edit', requireAuth, async (req, res) => {
     }
     
     const rooms = await db.getAllRooms({ status: 'A' });
-    const departments = await db.getAllDepartments({ status: 'A' });
+    // Department picker is admin-only on the edit form too.
+    const departments = res.locals.currentUser.isAdmin ? await db.getAllDepartments({ status: 'A' }) : [];
     const equipment = await db.getKelengkapanByRoom(booking.ruanganid);
     const users = await db.getAllUsers({ status: 'A' });
     const bookingUsers = await db.getBookingUsers(req.params.id);
@@ -653,8 +662,10 @@ app.post('/bookings/:id', requireAuth, async (req, res) => {
       kelengkapan
     } = req.body;
     
-    // Validation (department is NOT NULL in trevents — fail cleanly, not on the DB)
-    if (!room_id || !date || !timestart || !timeend || !eventname || !eventpeoplequantity || !department) {
+    // Validation (department is NOT NULL in trevents — fail cleanly, not on the DB).
+    // Regular users can't change the department: the booking keeps its own.
+    const isAdmin = res.locals.currentUser.isAdmin;
+    if (!room_id || !date || !timestart || !timeend || !eventname || !eventpeoplequantity || (isAdmin && !department)) {
       setFlash(req, 'error', 'Semua field wajib diisi');
       return res.redirect('/bookings/' + req.params.id + '/edit');
     }
@@ -682,7 +693,7 @@ app.post('/bookings/:id', requireAuth, async (req, res) => {
       eventdescription: eventdescription || '-',
       eventpeoplequantity,
       kelengkapanruangan: kelengkapanStr,
-      department: department || null
+      department: isAdmin ? (department || null) : booking.department
     });
     
     setFlash(req, 'success', 'Booking berhasil diupdate');

@@ -46,6 +46,7 @@ const selectedIds = String(booking.kelengkapanruangan || '').split(/[;,]/).map(x
             <label class="form-label" for="eventpeoplequantity">Jumlah Peserta</label>
             <input type="number" name="eventpeoplequantity" id="eventpeoplequantity" class="form-control" min="1" value="<%= booking.eventpeoplequantity %>" required>
           </div>
+          <% if (currentUser && currentUser.isAdmin) { %>
           <div class="form-group">
             <label class="form-label" for="department">Departemen</label>
             <select name="department" id="department" class="form-control" required>
@@ -55,6 +56,12 @@ const selectedIds = String(booking.kelengkapanruangan || '').split(/[;,]/).map(x
               <% }) %>
             </select>
           </div>
+          <% } else { %>
+          <div class="form-group">
+            <label class="form-label">Departemen</label>
+            <p class="form-control" style="background: #f8f9fa; margin: 0;"><%= booking.namadepartment || '-' %></p>
+          </div>
+          <% } %>
         </div>
 
         <div id="kelengkapan-container">
