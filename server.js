@@ -1114,4 +1114,12 @@ app.listen(PORT, async () => {
   } catch (err) {
     console.error('Failed to expire stale notifications:', err.message);
   }
+  // Day-of reminders: admins get today's bookings, each user only
+  // their own. Dedupe makes restarts safe — no duplicate spam.
+  try {
+    const r = await notify.createDayReminders();
+    if (r.created > 0) console.log(`🔔 Created ${r.created} day-of reminder(s) for ${r.date}`);
+  } catch (err) {
+    console.error('Failed to create day-of reminders:', err.message);
+  }
 });
