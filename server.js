@@ -77,7 +77,7 @@ app.use((req, res, next) => {
       locals = {};
     }
     locals = locals || {};
-    if (view === 'layouts/main') {
+    if (view === 'layouts/main' || view === 'layouts/admin') {
       return originalRender(view, locals, callback);
     }
     originalRender(view, locals, (err, html) => {
@@ -86,7 +86,8 @@ app.use((req, res, next) => {
         return next(err);
       }
       const layoutLocals = Object.assign({}, locals, { body: html });
-      originalRender('layouts/main', layoutLocals, (layoutErr, fullHtml) => {
+      const layoutView = locals.layout || res.locals.layout || 'layouts/main';
+      originalRender(layoutView, layoutLocals, (layoutErr, fullHtml) => {
         if (layoutErr) {
           if (callback) return callback(layoutErr);
           return next(layoutErr);
@@ -710,6 +711,14 @@ app.post('/bookings/:id/cancel', requireAuth, async (req, res) => {
 // ADMIN ROUTES
 // ============================================================
 
+// Admin shell — every /admin page renders inside layouts/admin.ejs
+app.use('/admin', (req, res, next) => {
+  res.locals.layout = 'layouts/admin';
+  const seg = (req.path || '/').split('/').filter(Boolean)[0] || '';
+  res.locals.active = { '': 'overview', calendar: 'calendar', bookings: 'bookings', rooms: 'rooms', users: 'users', departments: 'departments', equipment: 'equipment' }[seg] || '';
+  next();
+});
+
 // Admin dashboard
 app.get('/admin', requireAdmin, async (req, res) => {
   try {
@@ -719,12 +728,12 @@ app.get('/admin', requireAdmin, async (req, res) => {
       db.countUsers({ status: 'A' }),
       db.countDepartments({ status: 'A' })
     ]);
-    
+
     const pendingBookings = await db.getAllBookings({ status: 'P', limit: 10 });
     const todayEvents = await db.getTodayEvents();
-    
+
     res.render('admin/dashboard', {
-      title: 'Admin Dashboard',
+      title: 'Ringkasan',
       stats: {
         ...stats,
         rooms: totalRooms,
@@ -736,6 +745,35 @@ app.get('/admin', requireAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error('Admin dashboard error:', err);
+    res.status(500).send('Server error');
+  }
+});
+
+// Admin calendar — day timeline, rooms as rows, bookings as blocks
+app.get('/admin/calendar', requireAdmin, async (req, res) => {
+  try {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : todayStr;
+    const shift = days => {
+      const d = new Date(date + 'T12:00:00');
+      d.setDate(d.getDate() + days);
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    };
+    const roomFilter = req.query.room || '';
+    const rooms = await db.getAllRooms({ status: 'A' });
+    const allBookings = await db.getAllBookings({ date, limit: 1000, offset: 0 });
+    const bookings = roomFilter ? allBookings.filter(b => String(b.ruanganid) === String(roomFilter)) : allBookings;
+    const label = new Date(date + 'T12:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    res.render('admin/calendar', {
+      title: 'Kalender',
+      date, prevDate: shift(-1), nextDate: shift(1), todayStr,
+      label, rooms, bookings, roomFilter,
+      startHour: 7, endHour: 23
+    });
+  } catch (err) {
+    console.error('Admin calendar error:', err);
     res.status(500).send('Server error');
   }
 });

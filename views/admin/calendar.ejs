@@ -1,0 +1,150 @@
+<%
+const toMin = t => { const p = String(t || '0:00').split(':'); return (parseInt(p[0]) || 0) * 60 + (parseInt(p[1]) || 0); };
+const spanMin = (endHour - startHour) * 60;
+const blockPos = b => {
+  const s = Math.max(toMin(b.timestart), startHour * 60);
+  const e = Math.min(toMin(b.timeend), endHour * 60);
+  return {
+    left: ((s - startHour * 60) / spanMin * 100).toFixed(2),
+    width: (Math.max(e - s, 30) / spanMin * 100).toFixed(2)
+  };
+};
+const statusLabel = s => ({ P: 'Menunggu', A: 'Dikonfirmasi', R: 'Ditolak', C: 'Dibatalkan' }[s] || s);
+const hours = [];
+for (let h = startHour; h < endHour; h++) hours.push(h);
+const nowDate = new Date();
+const nowMin = nowDate.getHours() * 60 + nowDate.getMinutes();
+const showNow = date === todayStr && nowMin >= startHour * 60 && nowMin <= endHour * 60;
+const nowLeft = ((nowMin - startHour * 60) / spanMin * 100).toFixed(2);
+const bookingsByRoom = {};
+bookings.forEach(b => { (bookingsByRoom[String(b.ruanganid)] = bookingsByRoom[String(b.ruanganid)] || []).push(b); });
+const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
+%>
+
+<div class="cal-toolbar">
+  <form method="GET" action="/admin/calendar" class="cal-filter">
+    <span>🏢</span>
+    <select name="room" onchange="this.form.submit()">
+      <option value="" <%= roomFilter === '' ? 'selected' : '' %>>Semua Ruangan</option>
+      <% rooms.forEach(r => { %>
+        <option value="<%= r.id %>" <%= String(roomFilter) === String(r.id) ? 'selected' : '' %>><%= r.namaruangan %></option>
+      <% }) %>
+    </select>
+    <input type="hidden" name="date" value="<%= date %>">
+  </form>
+
+  <div class="cal-datenav">
+    <a href="/admin/calendar?date=<%= prevDate %><%= roomFilter ? '&room=' + roomFilter : '' %>" title="Hari sebelumnya">‹</a>
+    <span class="cal-date-label">📅 <%= label %></span>
+    <a href="/admin/calendar?date=<%= nextDate %><%= roomFilter ? '&room=' + roomFilter : '' %>" title="Hari berikutnya">›</a>
+  </div>
+
+  <% if (date !== todayStr) { %>
+    <a class="cal-today" href="/admin/calendar<%= roomFilter ? '?room=' + roomFilter : '' %>">Hari ini</a>
+  <% } %>
+  <a class="cal-add" href="/bookings/create">＋ Tambah</a>
+</div>
+
+<div class="cal-card">
+  <div class="cal-scroll">
+    <div class="cal-inner">
+      <div class="cal-head">
+        <div class="cal-room-col">Ruangan</div>
+        <div class="cal-hours">
+          <% hours.forEach(h => { %><span><%= h %>:00</span><% }) %>
+        </div>
+      </div>
+
+      <% rooms.forEach(room => {
+        const list = bookingsByRoom[String(room.id)] || [];
+        if (roomFilter && String(roomFilter) !== String(room.id)) return;
+      %>
+        <div class="cal-row">
+          <div class="cal-room-col cal-room">
+            <div class="cal-room-name" title="<%= room.namaruangan %>"><%= shortRoom(room.namaruangan) %></div>
+            <div class="cal-room-meta"><%= list.length === 0 ? 'Tidak ada booking' : list.length + ' booking' %></div>
+          </div>
+          <div class="cal-track">
+            <% if (showNow) { %><div class="cal-now" style="left: <%= nowLeft %>%"></div><% } %>
+            <% list.forEach(b => { const p = blockPos(b); %>
+              <button type="button" class="cal-block st-<%= b.status %>"
+                style="left: <%= p.left %>%; width: <%= p.width %>%;"
+                data-id="<%= b.id %>"
+                data-name="<%= b.eventname %>"
+                data-room="<%= b.namaruangan || '' %>"
+                data-booker="<%= b.namalengkap || '-' %>"
+                data-time="<%= b.timestart %> - <%= b.timeend %>"
+                data-status="<%= statusLabel(b.status) %>"
+                data-status-code="<%= b.status %>">
+                <%= b.eventname %>
+                <small><%= b.timestart %>-<%= b.timeend %></small>
+              </button>
+            <% }) %>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+
+  <div class="cal-legend">
+    <span><i class="lg-A"></i>Dikonfirmasi</span>
+    <span><i class="lg-P"></i>Menunggu persetujuan</span>
+    <span><i class="lg-R"></i>Ditolak / dibatalkan</span>
+    <span style="margin-left:auto"><%= bookings.length %> booking pada <%= label %></span>
+  </div>
+</div>
+
+<!-- Detail modal -->
+<div class="cal-modal-backdrop" id="cal-modal">
+  <div class="cal-modal">
+    <button type="button" class="cal-modal-close" id="cal-modal-close">✕</button>
+    <h3 id="m-name">-</h3>
+    <div class="m-sub" id="m-room">-</div>
+    <div class="m-row"><span>Status</span><span id="m-status">-</span></div>
+    <div class="m-row"><span>Waktu</span><span id="m-time">-</span></div>
+    <div class="m-row"><span>Tanggal</span><span><%= label %></span></div>
+    <div class="m-row"><span>Dibooking oleh</span><span id="m-booker">-</span></div>
+    <div class="m-actions" id="m-actions" style="display:none">
+      <form method="POST" id="m-approve" style="flex:1;display:flex">
+        <button type="submit" class="btn btn-approve" style="flex:1">Setujui</button>
+      </form>
+      <form method="POST" id="m-reject" style="flex:1;display:flex">
+        <button type="submit" class="btn btn-reject" style="flex:1">Tolak</button>
+      </form>
+    </div>
+    <div class="m-actions">
+      <a class="btn btn-secondary" id="m-detail" href="#" style="flex:1">Lihat Detail</a>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var backdrop = document.getElementById('cal-modal');
+  var closeBtn = document.getElementById('cal-modal-close');
+  function close() { backdrop.classList.remove('open'); }
+  closeBtn.addEventListener('click', close);
+  backdrop.addEventListener('click', function (e) { if (e.target === backdrop) close(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+  document.querySelectorAll('.cal-block').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var d = btn.dataset;
+      document.getElementById('m-name').textContent = d.name;
+      document.getElementById('m-room').textContent = d.room;
+      document.getElementById('m-status').textContent = d.status;
+      document.getElementById('m-time').textContent = d.time;
+      document.getElementById('m-booker').textContent = d.booker;
+      document.getElementById('m-detail').href = '/admin/bookings/' + d.id;
+      var acts = document.getElementById('m-actions');
+      if (d.statusCode === 'P') {
+        acts.style.display = 'flex';
+        document.getElementById('m-approve').action = '/admin/bookings/' + d.id + '/approve';
+        document.getElementById('m-reject').action = '/admin/bookings/' + d.id + '/reject';
+      } else {
+        acts.style.display = 'none';
+      }
+      backdrop.classList.add('open');
+    });
+  });
+})();
+</script>

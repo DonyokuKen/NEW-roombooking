@@ -4,7 +4,6 @@ const statusBadge = s => ({ P: 'pending', pending: 'pending', A: 'confirmed', ac
 const qs = p => `/admin/bookings?page=${p}&search=${encodeURIComponent(search || '')}&status=${encodeURIComponent(status || '')}&date=${encodeURIComponent(date || '')}`;
 %>
 <div class="container-fluid" style="padding: 2.5rem 1.5rem;">
-  <h1 class="mb-2">Kelola Booking</h1>
   <p class="text-muted mb-4"><%= total %> booking ditemukan</p>
 
   <form method="GET" action="/admin/bookings" class="filters search-form mb-4">
@@ -48,8 +47,8 @@ const qs = p => `/admin/bookings?page=${p}&search=${encodeURIComponent(search ||
               <tr>
                 <td><a href="/admin/bookings/<%= booking.id %>"><%= booking.eventname %></a></td>
                 <td><%= booking.namaruangan || '-' %></td>
-                <td><%= new Date(booking.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) %></td>
-                <td><%= booking.timestart %> - <%= booking.timeend %></td>
+                <td style="white-space:nowrap"><%= new Date(booking.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) %></td>
+                <td style="white-space:nowrap"><%= booking.timestart %> - <%= booking.timeend %></td>
                 <td><%= booking.namalengkap || '-' %></td>
                 <td><span class="badge badge-<%= statusBadge(booking.status) %>"><%= statusLabel(booking.status) %></span></td>
                 <td>

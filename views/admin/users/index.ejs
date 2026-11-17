@@ -3,7 +3,6 @@ const roleLabel = r => ({ U: 'Pengguna', M: 'Manager', SU: 'Super Admin' }[r] ||
 const qs = p => `/admin/users?page=${p}&search=${encodeURIComponent(search || '')}`;
 %>
 <div class="container-fluid" style="padding: 2.5rem 1.5rem;">
-  <h1 class="mb-2">Kelola Pengguna</h1>
   <p class="text-muted mb-4"><%= total %> pengguna ditemukan</p>
 
   <form method="GET" action="/admin/users" class="filters search-form mb-4">

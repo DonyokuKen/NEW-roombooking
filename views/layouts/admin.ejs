@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | RoomBooking Admin</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/admin.css">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#EDEFF5">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"></noscript>
+</head>
+<body class="admin-body">
+  <%
+    const act = typeof active !== 'undefined' ? active : '';
+    const isActive = (k) => act === k ? 'active' : '';
+    const initials = (typeof currentUser !== 'undefined' && currentUser && currentUser.namalengkap)
+      ? currentUser.namalengkap.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('')
+      : 'A';
+  %>
+  <div class="admin-shell">
+    <!-- Icon-rail sidebar -->
+    <aside class="admin-sidebar">
+      <a href="/admin" class="admin-logo" title="RoomBooking">🏢</a>
+      <nav class="admin-nav">
+        <a href="/admin" class="admin-nav-item <%= isActive('overview') %>"><span class="nav-ico">📊</span>Ringkasan</a>
+        <a href="/admin/calendar" class="admin-nav-item <%= isActive('calendar') %>"><span class="nav-ico">📅</span>Kalender</a>
+        <a href="/admin/bookings" class="admin-nav-item <%= isActive('bookings') %>"><span class="nav-ico">🗓️</span>Booking</a>
+        <a href="/admin/rooms" class="admin-nav-item <%= isActive('rooms') %>"><span class="nav-ico">🚪</span>Ruangan</a>
+        <a href="/admin/users" class="admin-nav-item <%= isActive('users') %>"><span class="nav-ico">👥</span>Pengguna</a>
+        <a href="/admin/departments" class="admin-nav-item <%= isActive('departments') %>"><span class="nav-ico">🏛️</span>Dept.</a>
+        <a href="/admin/equipment" class="admin-nav-item <%= isActive('equipment') %>"><span class="nav-ico">🧰</span>Alat</a>
+      </nav>
+      <div class="admin-nav-foot">
+        <a href="/logout" class="admin-nav-item"><span class="nav-ico">🚪</span>Keluar</a>
+      </div>
+    </aside>
+
+    <!-- Main column -->
+    <div class="admin-main">
+      <header class="admin-topbar">
+        <h1><%= title %></h1>
+        <form class="admin-search" method="GET" action="/admin/bookings">
+          <span>🔍</span>
+          <input type="text" name="search" placeholder="Cari booking, ruangan, pengguna..." autocomplete="off">
+        </form>
+        <a href="/notifications" class="admin-icon-btn" title="Notifikasi">🔔<% if (typeof notifCount !== 'undefined' && notifCount > 0) { %><span class="nav-count"><%= notifCount %></span><% } %></a>
+        <a href="/admin" class="admin-avatar" title="<%= (typeof currentUser !== 'undefined' && currentUser) ? currentUser.namalengkap : 'Admin' %>"><%= initials %></a>
+      </header>
+
+      <main class="admin-content">
+        <form class="admin-search admin-search-mobile" method="GET" action="/admin/bookings" style="display:none">
+          <span>🔍</span>
+          <input type="text" name="search" placeholder="Cari booking, ruangan, pengguna..." autocomplete="off">
+        </form>
+
+        <% if (typeof messages !== 'undefined' && messages) { %>
+          <% if (messages.success) { %><div class="alert alert-success"><%= messages.success %></div><% } %>
+          <% if (messages.error) { %><div class="alert alert-error"><%= messages.error %></div><% } %>
+          <% if (messages.warning) { %><div class="alert alert-warning"><%= messages.warning %></div><% } %>
+          <% if (messages.info) { %><div class="alert alert-info"><%= messages.info %></div><% } %>
+        <% } %>
+
+        <%- body %>
+      </main>
+    </div>
+  </div>
+
+  <!-- Bottom tab bar (mobile) -->
+  <nav class="admin-bottomnav">
+    <a href="/admin" class="<%= isActive('overview') %>"><span class="nav-ico">📊</span>Ringkasan</a>
+    <a href="/admin/calendar" class="<%= isActive('calendar') %>"><span class="nav-ico">📅</span>Kalender</a>
+    <a href="/admin/bookings" class="<%= isActive('bookings') %>"><span class="nav-ico">🗓️</span>Booking</a>
+    <a href="/admin/rooms" class="<%= isActive('rooms') %>"><span class="nav-ico">🚪</span>Ruangan</a>
+    <a href="/admin/users" class="<%= isActive('users') %>"><span class="nav-ico">👥</span>Pengguna</a>
+  </nav>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
