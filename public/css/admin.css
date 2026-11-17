@@ -753,9 +753,10 @@ body.admin-body {
   border-color: #8A90A3;
 }
 
-/* New-booking popup: lighter veil, calendar stays tappable behind it */
+/* New-booking popup: no dimming at all — the calendar stays fully
+   visible on the same layer, and stays tappable behind the popup */
 #cal-new-modal {
-  background: rgba(23, 26, 38, 0.28);
+  background: transparent;
   pointer-events: none;
 }
 
