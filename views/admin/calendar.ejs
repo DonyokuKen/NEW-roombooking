@@ -258,6 +258,18 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
     updateModal();
     backdrop.classList.add('open');
     openedAt = Date.now();
+    // The popup is a bottom sheet: scroll the picked row up clear of it, or
+    // the next tap lands on the popup instead of the row — and the legend
+    // says tap another hour to add hours, so the row must stay tappable.
+    requestAnimationFrame(function () {
+      if (!sel || !sel.track) return;
+      var box = backdrop.querySelector('.cal-modal');
+      var scroller = sel.track.closest('.cal-scroll');
+      if (!box || !scroller) return;
+      var sheetTop = window.innerHeight - box.getBoundingClientRect().height - 16;
+      var r = sel.track.getBoundingClientRect();
+      if (r.bottom > sheetTop) scroller.scrollTop += (r.bottom - sheetTop) + 8;
+    });
   }
   function close() {
     backdrop.classList.remove('open');
@@ -327,6 +339,7 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
         var w = freeWindow(track, sel.start);
         if (!w || cell < w[0] || cell >= w[1]) {
           openBusyModal(track, Math.min(sel.start, cell), Math.max(sel.end, cell + 60));
+          updateModal(); // keep the grey box on the pick behind the popup
           return;
         }
         var oldStart = sel.start, oldEnd = sel.end;
@@ -340,6 +353,7 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
         if (sel.end - sel.start < 30) {
           sel.start = oldStart; sel.end = oldEnd;
           openBusyModal(track, oldStart, cell + 60);
+          updateModal(); // keep the grey box on the pick behind the popup
           return;
         }
         updateModal();

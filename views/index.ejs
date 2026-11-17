@@ -227,6 +227,18 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
     updateModal();
     backdrop.classList.add('open');
     openedAt = Date.now();
+    // The popup is a bottom sheet: scroll the picked row up clear of it, or
+    // the next tap lands on the popup instead of the row — and the legend
+    // says tap another hour to add hours, so the row must stay tappable.
+    requestAnimationFrame(function () {
+      if (!sel || !sel.track) return;
+      var box = backdrop.querySelector('.cal-modal');
+      var scroller = sel.track.closest('.cal-scroll');
+      if (!box || !scroller) return;
+      var sheetTop = window.innerHeight - box.getBoundingClientRect().height - 16;
+      var r = sel.track.getBoundingClientRect();
+      if (r.bottom > sheetTop) scroller.scrollTop += (r.bottom - sheetTop) + 8;
+    });
   }
   function closeModal() {
     backdrop.classList.remove('open');
@@ -279,8 +291,13 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
 
   document.querySelectorAll('.cal-track').forEach(function (track) {
     track.addEventListener('pointerdown', function (e) {
-      // Booked blocks are not clickable — no event detail for users.
-      if (e.target.closest('.ubooked')) return;
+      // A tap on a booked block says it is taken instead of silently doing
+      // nothing. A tap on the very edge of a block rounds to the free hour
+      // next to it, so it still starts a pick there.
+      if (e.target.closest('.ubooked')) {
+        var m = minsAt(track, e.clientX);
+        if (!freeWindow(track, m)) { openBusyModal(track, m, m + 60); return; }
+      }
       // Clear the previous selection's grey box (it may be on another room).
       if (sel && sel.track) hideSel(sel.track);
       drag = { track: track, anchor: minsAt(track, e.clientX), startX: e.clientX, moved: false };
@@ -319,6 +336,7 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
         var w = freeWindow(track, sel.start);
         if (!w || cell < w[0] || cell >= w[1]) {
           openBusyModal(track, Math.min(sel.start, cell), Math.max(sel.end, cell + 60));
+          updateModal(); // keep the grey box on the pick behind the popup
           return;
         }
         var oldStart = sel.start, oldEnd = sel.end;
@@ -332,6 +350,7 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
         if (sel.end - sel.start < 30) {
           sel.start = oldStart; sel.end = oldEnd;
           openBusyModal(track, oldStart, cell + 60);
+          updateModal(); // keep the grey box on the pick behind the popup
           return;
         }
         updateModal();
