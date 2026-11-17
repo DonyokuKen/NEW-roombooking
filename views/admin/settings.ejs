@@ -58,4 +58,48 @@
       </form>
     </div>
   </div>
+
+  <div class="card" style="margin-top: 1.5rem;">
+    <div class="card-header">
+      <h2 class="card-title">📱 Notifikasi WhatsApp</h2>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="/admin/settings">
+        <input type="hidden" name="bookingWindowDays" value="<%= windowDays %>">
+        <div class="form-group">
+          <label class="form-label" style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="checkbox" name="waEnabled" <%= waEnabled ? 'checked' : '' %>>
+            Kirim notifikasi WhatsApp untuk booking
+          </label>
+          <p class="text-muted">Saat aktif, setiap booking baru, booking yang disetujui, ditolak, dan dibatalkan dikirim sebagai pesan WhatsApp ke nomor tujuan di bawah — sama seperti notifikasi Telegram di aplikasi lama.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="waNumber">Nomor WhatsApp tujuan</label>
+          <input type="text" name="waNumber" id="waNumber" class="form-control" placeholder="contoh: 62812… atau 0812…" value="<%= waNumber || '' %>">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="waBaseUrl">URL gateway OpenWA</label>
+          <input type="text" name="waBaseUrl" id="waBaseUrl" class="form-control" placeholder="contoh: https://wa.aselole.dpdns.org" value="<%= waBaseUrl || '' %>">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="waApiKey">API key gateway</label>
+          <input type="password" name="waApiKey" id="waApiKey" class="form-control" autocomplete="new-password" placeholder="<%= waApiKeySet ? 'Sudah diatur — kosongkan untuk tetap memakai yang lama' : 'Belum diatur' %>">
+          <p class="text-muted" style="margin-top: 0.5rem;">Disimpan di settings.json dan tidak pernah ditampilkan kembali. Kosongkan untuk tetap memakai API key yang sudah tersimpan.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="waSession">Session — akun WhatsApp yang mengirim notifikasi</label>
+          <input type="text" name="waSession" id="waSession" class="form-control" placeholder="contoh: bot-notif" value="<%= waSession || '' %>">
+          <p class="text-muted" style="margin-top: 0.5rem;">Nama session di gateway OpenWA (atau UUID-nya). Kalau gateway pindah server, tinggal ganti URL + key + session di sini — tidak perlu restart, pengaturan baru langsung dipakai booking berikutnya.</p>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Simpan Pengaturan WhatsApp</button>
+          <a href="/admin" class="btn btn-secondary">Batal</a>
+        </div>
+      </form>
+      <form method="POST" action="/admin/settings/whatsapp/test" style="margin-top: 1rem;">
+        <button type="submit" class="btn btn-secondary">Kirim Pesan Test</button>
+      </form>
+      <p class="text-muted" style="margin-top: 0.5rem;">Kirim satu pesan test ke nomor tujuan, untuk memastikan URL gateway, API key, dan session sudah benar — tanpa harus membuat booking palsu.</p>
+    </div>
+  </div>
 </div>

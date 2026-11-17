@@ -11,6 +11,7 @@ const notify = require('./lib/notify');
 const settings = require('./lib/settings');
 const merge = require('./lib/merge');
 const passwordReset = require('./lib/passwordReset');
+const whatsapp = require('./lib/whatsapp');
 
 const app = express();
 const PORT = process.env.PORT || 3100;
@@ -736,7 +737,13 @@ app.post('/bookings', requireAuth, async (req, res) => {
         await db.addBookingUser(bookingId, userId);
       }
     }
-    
+
+    // WhatsApp notification — the old Telegram "New Booking Request"
+    // (admins get the admin title, as the old ManagerController did).
+    // Fire-and-forget: a gateway failure must never block the booking.
+    whatsapp.notifyBookingEvent(isAdmin ? 'created-admin' : 'created', bookingId)
+      .catch(err => console.error('WhatsApp notify failed:', err.message));
+
     setFlash(req, 'success', 'Booking berhasil dibuat dan menunggu persetujuan admin');
     res.redirect('/bookings/' + bookingId);
   } catch (err) {
@@ -928,6 +935,10 @@ app.post('/bookings/:id/cancel', requireAuth, async (req, res) => {
     }
     
     await db.updateBooking(req.params.id, { status: 'C' });
+    // WhatsApp notification — the old Telegram "Booking Deleted" (the new
+    // app has no hard delete; cancelling is the equivalent).
+    whatsapp.notifyBookingEvent('cancelled', req.params.id)
+      .catch(err => console.error('WhatsApp notify failed:', err.message));
     setFlash(req, 'success', 'Booking berhasil dibatalkan');
     res.redirect('/bookings/' + req.params.id);
   } catch (err) {
@@ -1069,6 +1080,10 @@ app.post('/admin/bookings/:id/approve', requireAdmin, async (req, res) => {
     }
     
     await db.updateBooking(req.params.id, { status: 'A' });
+    // WhatsApp notification — the old Telegram "New Approved Booking
+    // Request". Fire-and-forget, never blocks the response.
+    whatsapp.notifyBookingEvent('approved', req.params.id)
+      .catch(err => console.error('WhatsApp notify failed:', err.message));
     setFlash(req, 'success', 'Booking berhasil disetujui');
     // Acting from the dashboard list sends the admin back there (forms on
     // that page post next=/admin); otherwise fall through to the detail page.
@@ -1099,6 +1114,10 @@ app.post('/admin/bookings/:id/reject', requireAdmin, async (req, res) => {
     }
     
     await db.updateBooking(req.params.id, { status: 'R' });
+    // WhatsApp notification. The old Telegram code sent the same
+    // "approved" text for a rejection; WhatsApp says rejected plainly.
+    whatsapp.notifyBookingEvent('rejected', req.params.id)
+      .catch(err => console.error('WhatsApp notify failed:', err.message));
     setFlash(req, 'success', 'Booking berhasil ditolak');
     const next = req.body.next;
     if (typeof next === 'string' && next.startsWith('/') && !next.startsWith('//')) {
@@ -1912,6 +1931,7 @@ app.get('/admin/users/:id', requireAdmin, async (req, res) => {
 // database. Admins only.
 app.get('/admin/settings', requireAdmin, (req, res) => {
   const email = settings.getEmailSettings();
+  const wa = settings.getWhatsAppSettings();
   res.render('admin/settings', {
     title: 'Pengaturan',
     windowDays: settings.getBookingWindowDays(),
@@ -1921,7 +1941,12 @@ app.get('/admin/settings', requireAdmin, (req, res) => {
     smtpHost: email.smtpHost,
     smtpPort: email.smtpPort,
     smtpUser: email.smtpUser,
-    smtpPassSet: email.smtpPassSet
+    smtpPassSet: email.smtpPassSet,
+    waEnabled: wa.waEnabled,
+    waBaseUrl: wa.waBaseUrl,
+    waSession: wa.waSession,
+    waNumber: wa.waNumber,
+    waApiKeySet: wa.waApiKeySet
   });
 });
 
@@ -1948,10 +1973,36 @@ app.post('/admin/settings', requireAdmin, (req, res) => {
       });
       emailNote = ` Reset password lewat email: ${email.emailResetEnabled ? 'aktif' : 'tidak aktif'}.`;
     }
+    // Same rule for the WhatsApp card: only touch it when the WhatsApp
+    // form was submitted (it always posts waNumber, even blank).
+    let waNote = '';
+    if (req.body.waNumber !== undefined) {
+      const wa = settings.saveWhatsAppSettings({
+        waEnabled: req.body.waEnabled === 'on',
+        waBaseUrl: req.body.waBaseUrl,
+        waApiKey: req.body.waApiKey ? req.body.waApiKey : undefined,
+        waSession: req.body.waSession,
+        waNumber: req.body.waNumber
+      });
+      waNote = ` Notifikasi WhatsApp: ${wa.waEnabled ? 'aktif' : 'tidak aktif'}.`;
+    }
     setFlash(req, 'success',
-      `Pengaturan disimpan. Pengguna biasa sekarang harus booking minimal ${days} hari sebelum acara.` + emailNote);
+      `Pengaturan disimpan. Pengguna biasa sekarang harus booking minimal ${days} hari sebelum acara.` + emailNote + waNote);
   } catch (err) {
     setFlash(req, 'error', err.message);
+  }
+  res.redirect('/admin/settings');
+});
+
+// Test the WhatsApp settings: one short message to the configured number,
+// so the gateway URL / key / session can be verified without creating a
+// fake booking. The send itself reports ok/error; nothing is saved here.
+app.post('/admin/settings/whatsapp/test', requireAdmin, async (req, res) => {
+  const result = await whatsapp.sendTest();
+  if (result.ok) {
+    setFlash(req, 'success', 'Pesan test WhatsApp terkirim — cek nomor tujuan.');
+  } else {
+    setFlash(req, 'error', 'Pesan test gagal: ' + (result.error || 'gateway tidak menjawab'));
   }
   res.redirect('/admin/settings');
 });
