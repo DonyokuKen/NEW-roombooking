@@ -3,6 +3,7 @@ const roleLabel = r => ({ U: 'Pengguna', M: 'Manager', SU: 'Super Admin' }[r] ||
 const statusLabel = s => ({ P: 'Tertunda', pending: 'Tertunda', A: 'Dikonfirmasi', accepted: 'Dikonfirmasi', confirmed: 'Dikonfirmasi', R: 'Ditolak', rejected: 'Ditolak', C: 'Dibatalkan', cancelled: 'Dibatalkan' }[s] || s);
 const statusBadge = s => ({ P: 'pending', pending: 'pending', A: 'confirmed', accepted: 'confirmed', confirmed: 'confirmed', R: 'rejected', rejected: 'rejected', C: 'cancelled', cancelled: 'cancelled' }[s] || 'pending');
 const isSU = typeof currentUser !== 'undefined' && currentUser && currentUser.isSuperAdmin;
+const isAdmin = typeof currentUser !== 'undefined' && currentUser && currentUser.isAdmin;
 const fmtLogin = v => {
   if (!v) return '-';
   const d = new Date(v);
@@ -30,7 +31,7 @@ const fmtDate = v => {
       <p><strong>Status:</strong> <span class="badge badge-<%= showUser.userstatus === 'A' ? 'confirmed' : 'cancelled' %>"><%= showUser.userstatus === 'A' ? 'Aktif' : 'Nonaktif' %></span></p>
       <p><strong>Login Terakhir:</strong> <%= fmtLogin(showUser.last_login_at) %></p>
       <p><strong>Terdaftar:</strong> <%= fmtDate(showUser.created_at) %></p>
-      <% if (isSU) { %><a href="/admin/users/<%= showUser.id %>/edit" class="btn btn-secondary">Edit</a><% } %>
+      <% if (isAdmin) { %><a href="/admin/users/<%= showUser.id %>/edit" class="btn btn-secondary">Edit</a><% } %>
     </div>
   </div>
 
