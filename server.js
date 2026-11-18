@@ -1447,6 +1447,43 @@ app.post('/admin/departments/:id/delete', requireAdmin, async (req, res) => {
   }
 });
 
+// Delete department PERMANENTLY (hard delete of the row). Super Admin
+// only. Allowed only when no user and no booking references the
+// department — the counts are recomputed from live data with the same
+// id-OR-normalized-name match as the departments list page, so a
+// department that still has members or bookings is refused instead of
+// orphaning those references.
+app.post('/admin/departments/:id/delete-permanent', requireSuperAdmin, async (req, res) => {
+  try {
+    const department = await db.getDepartmentById(req.params.id);
+    if (!department) {
+      setFlash(req, 'error', 'Departemen tidak ditemukan');
+      return res.redirect('/admin/departments');
+    }
+    const allUsers = await db.getAllUsers({});
+    const members = allUsers.filter(u =>
+      String(u.dept) === String(department.id) ||
+      merge.normalizeName(u.dept) === merge.normalizeName(department.namadepartment)
+    ).length;
+    const allBookings = await db.getAllBookings({ limit: 10000, offset: 0 });
+    const bookings = allBookings.filter(b =>
+      String(b.department) === String(department.id) ||
+      merge.normalizeName(b.department) === merge.normalizeName(department.namadepartment)
+    ).length;
+    if (members > 0 || bookings > 0) {
+      setFlash(req, 'error', `Departemen "${department.namadepartment}" tidak bisa dihapus permanen: masih ada ${members} anggota dan ${bookings} booking yang merujuk ke departemen ini.`);
+      return res.redirect('/admin/departments');
+    }
+    await db.hardDeleteDepartment(req.params.id);
+    setFlash(req, 'success', `Departemen "${department.namadepartment}" dihapus permanen.`);
+    res.redirect('/admin/departments');
+  } catch (err) {
+    console.error('Delete department permanent error:', err);
+    setFlash(req, 'error', 'Terjadi kesalahan sistem');
+    res.redirect('/admin/departments');
+  }
+});
+
 // Create department — form. Must sit before GET /admin/departments/:id:
 // 'new' would otherwise match :id.
 app.get('/admin/departments/new', requireAdmin, (req, res) => {

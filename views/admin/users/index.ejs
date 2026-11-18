@@ -20,7 +20,7 @@ const fmtLogin = v => {
         <input type="text" name="search" class="form-control" placeholder="Cari nama atau email..." value="<%= search || '' %>">
       </div>
       <div class="form-group">
-        <select name="dept" class="form-control">
+        <select name="dept" class="form-control" onchange="this.form.submit()">
           <option value="">Semua Departemen</option>
           <% (departments || []).forEach(d => { %>
             <option value="<%= d.id %>" <%= String(dept) === String(d.id) ? 'selected' : '' %>><%= d.namadepartment %></option>
