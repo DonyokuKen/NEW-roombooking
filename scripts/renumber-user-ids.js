@@ -65,6 +65,14 @@ async function main() {
   }
 
   await db.withTransaction(async q => {
+    // push_notification_logs.user_id is a real FOREIGN KEY to users.id
+    // (ON DELETE CASCADE, ON UPDATE NO ACTION). Remapping the children
+    // first would fail the FK check — the new user ids do not exist yet —
+    // and remapping users first would fail it the other way. So FK
+    // checks are off for this session only, for the duration of the
+    // transaction; the verification step below runs with checks back on
+    // and proves no reference was left dangling.
+    await q('SET FOREIGN_KEY_CHECKS = 0');
     // 0. Orphan fix: userid values with no matching user become '0'.
     const orphanRes = await q(
       "UPDATE trevents SET userid = '0' WHERE userid NOT IN (SELECT id FROM users)"
@@ -91,7 +99,9 @@ async function main() {
     const userCase = oldIds.map(oldId => `WHEN ${oldId + 1000000} THEN ${mapping.get(oldId)}`).join(' ');
     await q(`UPDATE users SET id = CASE id ${userCase} ELSE id END WHERE id > 1000000`);
 
-    // 5. Verify inside the transaction — before commit.
+    // 5. Verify inside the transaction — before commit. FK checks back
+    // on first, so these queries see the same constraints the app does.
+    await q('SET FOREIGN_KEY_CHECKS = 1');
     const [stats] = await q('SELECT COUNT(*) AS c, MIN(id) AS mn, MAX(id) AS mx, COUNT(DISTINCT id) AS d FROM users');
     if (stats.c !== n || stats.mn !== 1 || stats.mx !== n || stats.d !== n) {
       fail(`user id check failed after renumber: ${JSON.stringify(stats)} (expected count ${n}, 1..${n})`);
