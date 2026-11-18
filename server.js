@@ -1823,7 +1823,7 @@ app.get('/admin/users', requireAdmin, async (req, res) => {
 });
 
 // Edit user page — Super Admin only.
-app.get('/admin/users/:id/edit', requireSuperAdmin, async (req, res) => {
+app.get('/admin/users/:id/edit', requireAdmin, async (req, res) => {
   try {
     const user = await db.findUserByIdAny(req.params.id);
     if (!user) {
@@ -1843,7 +1843,8 @@ app.get('/admin/users/:id/edit', requireSuperAdmin, async (req, res) => {
       title: 'Edit Pengguna',
       editUser: user,
       departments,
-      currentDeptLabel
+      currentDeptLabel,
+      isSuperAdmin: !!res.locals.currentUser.isSuperAdmin
     });
   } catch (err) {
     console.error('Edit user page error:', err);
@@ -1851,16 +1852,26 @@ app.get('/admin/users/:id/edit', requireSuperAdmin, async (req, res) => {
   }
 });
 
-// Update user — Super Admin only. Empty password field keeps the current
-// password; a filled one is bcrypt-hashed before saving.
-app.post('/admin/users/:id/edit', requireSuperAdmin, async (req, res) => {
+// Update user — Manager and Super Admin. Empty password field keeps the
+// current password; a filled one is bcrypt-hashed before saving.
+// Managers may edit profile fields and reset passwords, but they cannot
+// change roles or status (that would let them promote someone to Super
+// Admin or deactivate users, which is the same as deleting them) —
+// those two fields are forced to the target user's current values and
+// are not rendered as inputs for non-SU editors. Delete stays SU-only.
+app.post('/admin/users/:id/edit', requireAdmin, async (req, res) => {
   try {
     const user = await db.findUserByIdAny(req.params.id);
     if (!user) {
       setFlash(req, 'error', 'Pengguna tidak ditemukan');
       return res.redirect('/admin/users');
     }
-    const { namalengkap, email, notelp, gender, dept, roles, userstatus, password } = req.body;
+    const isSU = !!res.locals.currentUser.isSuperAdmin;
+    const { namalengkap, email, notelp, gender, dept, password } = req.body;
+    // Roles/status come from the form only for Super Admins; managers
+    // keep the target user's current values no matter what is posted.
+    const roles = isSU ? req.body.roles : user.roles;
+    const userstatus = isSU ? req.body.userstatus : user.userstatus;
     if (!namalengkap || !email) {
       setFlash(req, 'error', 'Nama lengkap dan email wajib diisi');
       return res.redirect('/admin/users/' + req.params.id + '/edit');
@@ -1874,7 +1885,8 @@ app.post('/admin/users/:id/edit', requireSuperAdmin, async (req, res) => {
       return res.redirect('/admin/users/' + req.params.id + '/edit');
     }
     // A super admin cannot demote or deactivate their own account.
-    if (String(user.id) === String(res.locals.currentUser.id) && (roles !== 'SU' || userstatus !== 'A')) {
+    // (Managers cannot change roles/status at all, so nothing to guard.)
+    if (isSU && String(user.id) === String(res.locals.currentUser.id) && (roles !== 'SU' || userstatus !== 'A')) {
       setFlash(req, 'error', 'Tidak dapat mengubah peran atau status akun sendiri');
       return res.redirect('/admin/users/' + req.params.id + '/edit');
     }

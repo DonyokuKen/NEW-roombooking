@@ -40,6 +40,7 @@ const deptIsListed = !currentDept || deptIds.has(currentDept);
             <% }) %>
           </select>
         </div>
+        <% if (typeof isSuperAdmin !== 'undefined' && isSuperAdmin) { %>
         <div class="form-group">
           <label class="form-label" for="roles">Peran</label>
           <select name="roles" id="roles" class="form-control">
@@ -55,6 +56,16 @@ const deptIsListed = !currentDept || deptIds.has(currentDept);
             <option value="N" <%= editUser.userstatus !== 'A' ? 'selected' : '' %>>Nonaktif</option>
           </select>
         </div>
+        <% } else { %>
+        <div class="form-group">
+          <label class="form-label">Peran</label>
+          <p class="form-control" style="background: var(--bg, #f3f4f6);"><%= editUser.roles === 'SU' ? 'Super Admin' : (editUser.roles === 'M' ? 'Manager' : 'Pengguna') %> — hanya Super Admin yang bisa mengubah peran</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <p class="form-control" style="background: var(--bg, #f3f4f6);"><%= editUser.userstatus === 'A' ? 'Aktif' : 'Nonaktif' %> — hanya Super Admin yang bisa mengubah status</p>
+        </div>
+        <% } %>
         <div class="form-group">
           <label class="form-label" for="password">Reset Password (opsional)</label>
           <input type="password" name="password" id="password" class="form-control" placeholder="Kosongkan jika tidak diubah" autocomplete="new-password">
