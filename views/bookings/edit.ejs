@@ -17,6 +17,9 @@ const selectedIds = String(booking.kelengkapanruangan || '').split(/[;,]/).map(x
             <% rooms.forEach(room => { %>
               <option value="<%= room.id %>" <%= String(booking.ruanganid) === String(room.id) ? 'selected' : '' %>><%= room.namaruangan %></option>
             <% }) %>
+            <% if (booking.ruanganid && !rooms.some(r => String(r.id) === String(booking.ruanganid))) { %>
+              <option value="<%= booking.ruanganid %>" selected><%= booking.namaruangan || ('Ruangan ' + booking.ruanganid) %></option>
+            <% } %>
           </select>
         </div>
         <div class="grid grid-3">
@@ -58,6 +61,9 @@ const selectedIds = String(booking.kelengkapanruangan || '').split(/[;,]/).map(x
               <% departments.forEach(dept => { %>
                 <option value="<%= dept.id %>" <%= String(booking.department) === String(dept.id) ? 'selected' : '' %>><%= dept.namadepartment %></option>
               <% }) %>
+              <% if (booking.department && !departments.some(d => String(d.id) === String(booking.department))) { %>
+                <option value="<%= booking.department %>" selected><%= booking.namadepartment || booking.department %></option>
+              <% } %>
             </select>
           </div>
           <% } else { %>
@@ -92,7 +98,7 @@ const selectedIds = String(booking.kelengkapanruangan || '').split(/[;,]/).map(x
 
         <div class="d-flex gap-2">
           <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
-          <a href="/bookings/<%= booking.id %>" class="btn btn-secondary">Batal</a>
+          <a href="<%= (currentUser && currentUser.isSuperAdmin) ? '/admin/bookings/' + booking.id : '/bookings/' + booking.id %>" class="btn btn-secondary">Batal</a>
         </div>
       </form>
     </div>

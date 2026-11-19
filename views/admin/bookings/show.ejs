@@ -90,6 +90,12 @@ const selectedEquipment = (equipment || []).filter(item => selectedIds.includes(
           </form>
         </div>
       <% } %>
+
+      <% if (currentUser && currentUser.isSuperAdmin) { %>
+        <div class="d-flex gap-2 flex-wrap mt-4">
+          <a href="/bookings/<%= booking.id %>/edit" class="btn btn-secondary">Edit Booking</a>
+        </div>
+      <% } %>
     </div>
   </div>
 </div>

@@ -797,17 +797,19 @@ app.get('/bookings/:id/edit', requireAuth, async (req, res) => {
       return res.redirect('/bookings');
     }
     
-    // Only owner can edit and only pending bookings
-    if (booking.userid != res.locals.currentUser.id) {
+    // Only owner can edit and only pending bookings — except Super Admin,
+    // who can edit any booking, including approved ones.
+    const isSU = res.locals.currentUser.isSuperAdmin;
+    if (!isSU && booking.userid != res.locals.currentUser.id) {
       setFlash(req, 'error', 'Anda tidak dapat mengedit booking ini');
       return res.redirect('/bookings/' + req.params.id);
     }
-    
-    if (booking.status !== 'P') {
+
+    if (!isSU && booking.status !== 'P') {
       setFlash(req, 'error', 'Hanya booking yang tertunda yang dapat diedit');
       return res.redirect('/bookings/' + req.params.id);
     }
-    
+
     const rooms = await db.getAllRooms({ status: 'A' });
     // Department picker is admin-only on the edit form too.
     const departments = res.locals.currentUser.isAdmin ? await db.getAllDepartments({ status: 'A' }) : [];
@@ -839,16 +841,19 @@ app.post('/bookings/:id', requireAuth, async (req, res) => {
       return res.redirect('/bookings');
     }
     
-    if (booking.userid != res.locals.currentUser.id) {
+    // Same rule as the edit page: owner + pending only, except Super
+    // Admin, who can edit any booking, including approved ones.
+    const isSU = res.locals.currentUser.isSuperAdmin;
+    if (!isSU && booking.userid != res.locals.currentUser.id) {
       setFlash(req, 'error', 'Anda tidak dapat mengedit booking ini');
       return res.redirect('/bookings/' + req.params.id);
     }
-    
-    if (booking.status !== 'P') {
+
+    if (!isSU && booking.status !== 'P') {
       setFlash(req, 'error', 'Hanya booking yang tertunda yang dapat diedit');
       return res.redirect('/bookings/' + req.params.id);
     }
-    
+
     const {
       room_id,
       date,
@@ -896,7 +901,7 @@ app.post('/bookings/:id', requireAuth, async (req, res) => {
     });
     
     setFlash(req, 'success', 'Booking berhasil diupdate');
-    res.redirect('/bookings/' + req.params.id);
+    res.redirect(res.locals.currentUser.isSuperAdmin ? '/admin/bookings/' + req.params.id : '/bookings/' + req.params.id);
   } catch (err) {
     console.error('Update booking error:', err);
     setFlash(req, 'error', 'Terjadi kesalahan sistem');
