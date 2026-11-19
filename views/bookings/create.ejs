@@ -48,13 +48,8 @@
           </div>
           <% if (currentUser && currentUser.isAdmin) { %>
           <div class="form-group">
-            <label class="form-label" for="department">Departemen</label>
-            <select name="department" id="department" class="form-control" required>
-              <option value="">-- Pilih Departemen --</option>
-              <% departments.forEach(dept => { %>
-                <option value="<%= dept.id %>" <%= String(currentUser.dept) === String(dept.id) ? 'selected' : '' %>><%= dept.namadepartment %></option>
-              <% }) %>
-            </select>
+            <label class="form-label">Departemen</label>
+            <p class="text-muted" style="margin: 0; padding-top: 0.6rem;">Mengikuti Peserta Terkait yang dipilih. Jika tidak ada yang dipilih, memakai departemen Anda.</p>
           </div>
           <% } %>
         </div>

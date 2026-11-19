@@ -659,18 +659,20 @@ app.post('/bookings', requireAuth, async (req, res) => {
       eventname,
       eventdescription,
       eventpeoplequantity,
-      department,
       kelengkapan,
       associated_users
     } = req.body;
     
-    // Department picker + participant picker are admin-only (same as the
-    // old Laravel app): regular users book under their own department and
-    // cannot attach participants, even via a crafted request.
+    // Participant picker is admin-only (same as the old Laravel app):
+    // regular users cannot attach participants, even via a crafted
+    // request. Admins no longer pick a department on the form at all:
+    // the booking's department follows the first chosen Peserta Terkait,
+    // and falls back to the admin's own department when none is chosen.
+    // A department value smuggled into the request is ignored.
     const isAdmin = res.locals.currentUser.isAdmin;
 
-    // Validation (department is only required when the admin picks one)
-    if (!room_id || !date || !timestart || !timeend || !eventname || !eventpeoplequantity || (isAdmin && !department)) {
+    // Validation
+    if (!room_id || !date || !timestart || !timeend || !eventname || !eventpeoplequantity) {
       setFlash(req, 'error', 'Semua field wajib diisi');
       return res.redirect('/bookings/create');
     }
@@ -716,6 +718,27 @@ app.post('/bookings', requireAuth, async (req, res) => {
       kelengkapanStr = kelengkapan.toString();
     }
     
+    // Resolve the booking's department. For admins it follows the first
+    // chosen Peserta Terkait, falling back to the admin's own department;
+    // regular users always book under their own department.
+    let bookingDept = null;
+    if (isAdmin) {
+      const assocIds = Array.isArray(associated_users)
+        ? associated_users
+        : (associated_users ? [associated_users] : []);
+      for (const uid of assocIds) {
+        const assocUser = await db.findUserById(uid);
+        if (assocUser && assocUser.dept) { bookingDept = assocUser.dept; break; }
+      }
+      bookingDept = bookingDept || res.locals.currentUser.dept || null;
+    } else {
+      bookingDept = res.locals.currentUser.dept || null;
+    }
+    if (!bookingDept) {
+      setFlash(req, 'error', 'Departemen tidak ditemukan — pilih Peserta Terkait atau lengkapi departemen Anda');
+      return res.redirect('/bookings/create');
+    }
+    
     // Create booking
     const bookingId = await db.createBooking({
       ruanganid: room_id,
@@ -728,7 +751,7 @@ app.post('/bookings', requireAuth, async (req, res) => {
       eventdescription: eventdescription || '-',
       eventpeoplequantity,
       kelengkapanruangan: kelengkapanStr,
-      department: isAdmin ? (department || null) : (res.locals.currentUser.dept || null)
+      department: bookingDept
     });
 
     // Add associated users (admins only)
