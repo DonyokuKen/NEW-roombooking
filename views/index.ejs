@@ -36,7 +36,7 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
 
     <div class="cal-datenav">
       <a href="/?date=<%= prevDate %><%= roomFilter ? '&room=' + roomFilter : '' %>" title="Hari sebelumnya">‹</a>
-      <span class="cal-date-label">📅 <%= label %></span>
+      <span class="cal-date-label cal-date-pick" title="Pilih tanggal">📅 <%= label %><input type="date" class="cal-date-input" value="<%= date %>" aria-label="Pilih tanggal"></span>
       <a href="/?date=<%= nextDate %><%= roomFilter ? '&room=' + roomFilter : '' %>" title="Hari berikutnya">›</a>
     </div>
 
@@ -187,6 +187,16 @@ const loggedIn = typeof currentUser !== 'undefined' && currentUser;
   }
   roomFilter.addEventListener('change', applyRoomFilter);
   applyRoomFilter(); // apply the server-rendered selection on load
+
+  // The date label opens the native date picker; picking a date jumps the calendar there.
+  document.querySelectorAll('.cal-date-input').forEach(function (el) {
+    el.addEventListener('change', function () {
+      if (!el.value) return;
+      var url = '/?date=' + el.value;
+      if (roomFilter && roomFilter.value) url += '&room=' + encodeURIComponent(roomFilter.value);
+      window.location.href = url;
+    });
+  });
 
   // Tap a free hour to pick it (grey) and ask "Book This Room?";
   // tap more hours on the same room to add them, tap inside the pick to

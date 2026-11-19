@@ -35,7 +35,7 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
 
   <div class="cal-datenav">
     <a href="/admin/calendar?date=<%= prevDate %><%= roomFilter ? '&room=' + roomFilter : '' %>" title="Hari sebelumnya">‹</a>
-    <span class="cal-date-label">📅 <%= label %></span>
+    <span class="cal-date-label cal-date-pick" title="Pilih tanggal">📅 <%= label %><input type="date" class="cal-date-input" value="<%= date %>" aria-label="Pilih tanggal"></span>
     <a href="/admin/calendar?date=<%= nextDate %><%= roomFilter ? '&room=' + roomFilter : '' %>" title="Hari berikutnya">›</a>
   </div>
 
@@ -384,6 +384,19 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
     }
     track.addEventListener('pointerup', function (e) { finish(e, false); });
     track.addEventListener('pointercancel', function (e) { finish(e, true); });
+  });
+})();
+
+// The date label opens the native date picker; picking a date jumps the calendar there.
+(function () {
+  var input = document.querySelector('.cal-date-input');
+  if (!input) return;
+  input.addEventListener('change', function () {
+    if (!input.value) return;
+    var url = '/admin/calendar?date=' + input.value;
+    var roomSel = document.querySelector('form.cal-filter select[name="room"]');
+    if (roomSel && roomSel.value) url += '&room=' + encodeURIComponent(roomSel.value);
+    window.location.href = url;
   });
 })();
 </script>
