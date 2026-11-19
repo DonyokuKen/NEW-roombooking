@@ -1,5 +1,48 @@
 // RoomBooking Client-Side JavaScript
 
+// Searchable multi-select dropdown (same pattern as the Peserta Terkait
+// picker): a toggle button, a panel with a search box and a checkbox
+// list, and a label showing how many are picked. The real checkboxes
+// stay inside the form, so the POST is unchanged.
+function initMultiDropdown(dd) {
+  if (!dd || dd.dataset.init) return;
+  dd.dataset.init = '1';
+  var toggle = dd.querySelector('.dropdown-toggle');
+  var panel = dd.querySelector('.dropdown-panel');
+  var search = dd.querySelector('.dropdown-search');
+  var label = dd.querySelector('.dropdown-label');
+  var placeholder = dd.dataset.placeholder || 'Pilih...';
+  var pickedWord = dd.dataset.pickedWord || 'dipilih';
+  function updateLabel() {
+    var n = dd.querySelectorAll('input[type="checkbox"]:checked').length;
+    label.textContent = n === 0 ? placeholder : n + ' ' + pickedWord;
+  }
+  if (toggle && panel) {
+    toggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      panel.hidden = !panel.hidden;
+      if (!panel.hidden && search) search.focus();
+    });
+  }
+  var doneBtn = dd.querySelector('.dropdown-done');
+  if (doneBtn && panel) doneBtn.addEventListener('click', function () { panel.hidden = true; });
+  document.addEventListener('click', function (e) {
+    if (!dd.contains(e.target) && panel) panel.hidden = true;
+  });
+  if (search) search.addEventListener('input', function () {
+    var q = search.value.trim().toLowerCase();
+    dd.querySelectorAll('.dropdown-item').forEach(function (item) {
+      item.style.display = item.textContent.toLowerCase().indexOf(q) !== -1 ? '' : 'none';
+    });
+  });
+  dd.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+    cb.addEventListener('change', updateLabel);
+  });
+  updateLabel();
+}
+
+document.querySelectorAll('.dropdown[data-multiselect]').forEach(initMultiDropdown);
+
 // Booking form functionality
 if (document.getElementById('booking-form')) {
   const form = document.getElementById('booking-form');
@@ -29,21 +72,29 @@ if (document.getElementById('booking-form')) {
       try {
         const response = await fetch(`/api/kelengkapan?room=${roomId}`);
         const data = await response.json();
-        
+
         if (data.success && data.data.length > 0) {
+          // Keep whatever is already ticked (the edit form renders the
+          // saved selection server-side; a plain rebuild would wipe it).
+          const kept = new Set(
+            Array.from(kelengkapanContainer.querySelectorAll('input[name="kelengkapan[]"]:checked'))
+              .map(cb => String(cb.value))
+          );
           let html = '<div class="form-group"><label class="form-label">Kelengkapan yang Dibutuhkan</label>';
+          html += '<div class="dropdown" data-multiselect data-placeholder="Pilih kelengkapan..." data-picked-word="kelengkapan dipilih">';
+          html += '<button type="button" class="form-control dropdown-toggle"><span class="dropdown-label">Pilih kelengkapan...</span></button>';
+          html += '<div class="dropdown-panel" hidden>';
+          html += '<input type="search" class="form-control dropdown-search" placeholder="Cari kelengkapan..." autocomplete="off">';
+          html += '<div class="dropdown-list">';
           data.data.forEach(item => {
-            html += `
-              <div class="mb-2">
-                <label class="d-flex align-items-center">
-                  <input type="checkbox" name="kelengkapan[]" value="${item.id}" class="mr-2">
-                  <span>${item.NamaKelengkapan}</span>
-                </label>
-              </div>
-            `;
+            const checked = kept.has(String(item.id)) ? ' checked' : '';
+            html += `<label class="dropdown-item"><input type="checkbox" name="kelengkapan[]" value="${item.id}"${checked}><span>${item.NamaKelengkapan}</span></label>`;
           });
           html += '</div>';
+          html += '<button type="button" class="btn btn-secondary w-100 mt-2 dropdown-done">Selesai</button>';
+          html += '</div></div></div>';
           kelengkapanContainer.innerHTML = html;
+          kelengkapanContainer.querySelectorAll('.dropdown[data-multiselect]').forEach(initMultiDropdown);
         } else {
           kelengkapanContainer.innerHTML = '<p class="text-muted">Tidak ada kelengkapan tersedia untuk ruangan ini</p>';
         }

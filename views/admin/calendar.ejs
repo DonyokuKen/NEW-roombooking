@@ -115,6 +115,11 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
         <button type="submit" class="btn btn-reject" style="flex:1">Tolak</button>
       </form>
     </div>
+    <div class="m-actions" id="m-cancel-actions" style="display:none">
+      <form method="POST" id="m-cancel" style="flex:1;display:flex" onsubmit="return confirm('Batalkan booking ini?')">
+        <button type="submit" class="btn btn-danger" style="flex:1">Batalkan Booking</button>
+      </form>
+    </div>
     <div class="m-actions">
       <a class="btn btn-secondary" id="m-detail" href="#" style="flex:1">Lihat Detail</a>
     </div>
@@ -168,12 +173,19 @@ const shortRoom = n => String(n || '').replace(/^Tamsir\s*-?\s*/i, '').trim();
       document.getElementById('m-booker').textContent = d.booker;
       document.getElementById('m-detail').href = '/admin/bookings/' + d.id;
       var acts = document.getElementById('m-actions');
+      var cancelActs = document.getElementById('m-cancel-actions');
       if (d.statusCode === 'P') {
         acts.style.display = 'flex';
+        cancelActs.style.display = 'none';
         document.getElementById('m-approve').action = '/admin/bookings/' + d.id + '/approve';
         document.getElementById('m-reject').action = '/admin/bookings/' + d.id + '/reject';
+      } else if (d.statusCode === 'A' || d.statusCode === 'confirmed') {
+        acts.style.display = 'none';
+        cancelActs.style.display = 'flex';
+        document.getElementById('m-cancel').action = '/admin/bookings/' + d.id + '/cancel';
       } else {
         acts.style.display = 'none';
+        cancelActs.style.display = 'none';
       }
       backdrop.classList.add('open');
     });

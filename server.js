@@ -797,16 +797,17 @@ app.get('/bookings/:id/edit', requireAuth, async (req, res) => {
       return res.redirect('/bookings');
     }
     
-    // Only owner can edit and only pending bookings — except Super Admin,
-    // who can edit any booking, including approved ones.
+    // Who can edit: Super Admin any booking; any admin a pending booking;
+    // the owner their own pending booking.
     const isSU = res.locals.currentUser.isSuperAdmin;
-    if (!isSU && booking.userid != res.locals.currentUser.id) {
-      setFlash(req, 'error', 'Anda tidak dapat mengedit booking ini');
+    const isAdmin = res.locals.currentUser.isAdmin;
+    if (!isSU && booking.status !== 'P') {
+      setFlash(req, 'error', 'Hanya booking yang tertunda yang dapat diedit');
       return res.redirect('/bookings/' + req.params.id);
     }
 
-    if (!isSU && booking.status !== 'P') {
-      setFlash(req, 'error', 'Hanya booking yang tertunda yang dapat diedit');
+    if (!isSU && !isAdmin && booking.userid != res.locals.currentUser.id) {
+      setFlash(req, 'error', 'Anda tidak dapat mengedit booking ini');
       return res.redirect('/bookings/' + req.params.id);
     }
 
@@ -841,16 +842,17 @@ app.post('/bookings/:id', requireAuth, async (req, res) => {
       return res.redirect('/bookings');
     }
     
-    // Same rule as the edit page: owner + pending only, except Super
-    // Admin, who can edit any booking, including approved ones.
+    // Same rule as the edit page: Super Admin any booking; any admin a
+    // pending booking; the owner their own pending booking.
     const isSU = res.locals.currentUser.isSuperAdmin;
-    if (!isSU && booking.userid != res.locals.currentUser.id) {
-      setFlash(req, 'error', 'Anda tidak dapat mengedit booking ini');
+    const isAdmin = res.locals.currentUser.isAdmin;
+    if (!isSU && booking.status !== 'P') {
+      setFlash(req, 'error', 'Hanya booking yang tertunda yang dapat diedit');
       return res.redirect('/bookings/' + req.params.id);
     }
 
-    if (!isSU && booking.status !== 'P') {
-      setFlash(req, 'error', 'Hanya booking yang tertunda yang dapat diedit');
+    if (!isSU && !isAdmin && booking.userid != res.locals.currentUser.id) {
+      setFlash(req, 'error', 'Anda tidak dapat mengedit booking ini');
       return res.redirect('/bookings/' + req.params.id);
     }
 
@@ -868,7 +870,6 @@ app.post('/bookings/:id', requireAuth, async (req, res) => {
     
     // Validation (department is NOT NULL in trevents — fail cleanly, not on the DB).
     // Regular users can't change the department: the booking keeps its own.
-    const isAdmin = res.locals.currentUser.isAdmin;
     if (!room_id || !date || !timestart || !timeend || !eventname || !eventpeoplequantity || (isAdmin && !department)) {
       setFlash(req, 'error', 'Semua field wajib diisi');
       return res.redirect('/bookings/' + req.params.id + '/edit');
@@ -899,9 +900,20 @@ app.post('/bookings/:id', requireAuth, async (req, res) => {
       kelengkapanruangan: kelengkapanStr,
       department: isAdmin ? (department || null) : booking.department
     });
-    
-    setFlash(req, 'success', 'Booking berhasil diupdate');
-    res.redirect(res.locals.currentUser.isSuperAdmin ? '/admin/bookings/' + req.params.id : '/bookings/' + req.params.id);
+
+    // "Simpan & Setujui": an admin saving a pending booking can approve it
+    // in the same click — same status flip + WhatsApp notice as the
+    // approve button on the detail page.
+    const saveApprove = req.body.action === 'save_approve' && isAdmin && booking.status === 'P';
+    if (saveApprove) {
+      await db.updateBooking(req.params.id, { status: 'A' });
+      whatsapp.notifyBookingEvent('approved', req.params.id)
+        .catch(err => console.error('WhatsApp notify failed:', err.message));
+      setFlash(req, 'success', 'Booking berhasil diupdate dan disetujui');
+    } else {
+      setFlash(req, 'success', 'Booking berhasil diupdate');
+    }
+    res.redirect(isAdmin ? '/admin/bookings/' + req.params.id : '/bookings/' + req.params.id);
   } catch (err) {
     console.error('Update booking error:', err);
     setFlash(req, 'error', 'Terjadi kesalahan sistem');
@@ -1131,6 +1143,40 @@ app.post('/admin/bookings/:id/reject', requireAdmin, async (req, res) => {
     res.redirect('/admin/bookings/' + req.params.id);
   } catch (err) {
     console.error('Reject booking error:', err);
+    setFlash(req, 'error', 'Terjadi kesalahan sistem');
+    res.redirect('/admin/bookings');
+  }
+});
+
+// Cancel a booking (admin only). Unlike the user's own cancel, there is
+// no 48-hour rule and no past-booking block: an admin cancelling a
+// confirmed booking is an override (room out of service, double booking,
+// event called off). Works on pending bookings too.
+app.post('/admin/bookings/:id/cancel', requireAdmin, async (req, res) => {
+  try {
+    const booking = await db.getBookingById(req.params.id);
+    if (!booking) {
+      setFlash(req, 'error', 'Booking tidak ditemukan');
+      return res.redirect('/admin/bookings');
+    }
+
+    if (booking.status !== 'P' && booking.status !== 'A') {
+      setFlash(req, 'error', 'Booking ini sudah tidak aktif');
+      return res.redirect('/admin/bookings/' + req.params.id);
+    }
+
+    await db.updateBooking(req.params.id, { status: 'C' });
+    // WhatsApp notification — same "Booking Cancelled" as the user's cancel.
+    whatsapp.notifyBookingEvent('cancelled', req.params.id)
+      .catch(err => console.error('WhatsApp notify failed:', err.message));
+    setFlash(req, 'success', 'Booking berhasil dibatalkan');
+    const next = req.body.next;
+    if (typeof next === 'string' && next.startsWith('/') && !next.startsWith('//')) {
+      return res.redirect(next);
+    }
+    res.redirect('/admin/bookings/' + req.params.id);
+  } catch (err) {
+    console.error('Admin cancel booking error:', err);
     setFlash(req, 'error', 'Terjadi kesalahan sistem');
     res.redirect('/admin/bookings');
   }

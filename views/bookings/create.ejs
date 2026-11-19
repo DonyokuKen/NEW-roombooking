@@ -63,14 +63,23 @@
           <% if (equipment && equipment.length > 0) { %>
             <div class="form-group">
               <label class="form-label">Kelengkapan yang Dibutuhkan</label>
-              <% equipment.forEach(item => { %>
-                <div class="mb-2">
-                  <label class="d-flex align-items-center">
-                    <input type="checkbox" name="kelengkapan[]" value="<%= item.id %>">
-                    <span><%= item.NamaKelengkapan %></span>
-                  </label>
+              <div class="dropdown" data-multiselect data-placeholder="Pilih kelengkapan..." data-picked-word="kelengkapan dipilih">
+                <button type="button" class="form-control dropdown-toggle">
+                  <span class="dropdown-label">Pilih kelengkapan...</span>
+                </button>
+                <div class="dropdown-panel" hidden>
+                  <input type="search" class="form-control dropdown-search" placeholder="Cari kelengkapan..." autocomplete="off">
+                  <div class="dropdown-list">
+                    <% equipment.forEach(item => { %>
+                      <label class="dropdown-item">
+                        <input type="checkbox" name="kelengkapan[]" value="<%= item.id %>">
+                        <span><%= item.NamaKelengkapan %></span>
+                      </label>
+                    <% }) %>
+                  </div>
+                  <button type="button" class="btn btn-secondary w-100 mt-2 dropdown-done">Selesai</button>
                 </div>
-              <% }) %>
+              </div>
             </div>
           <% } else { %>
             <p class="text-muted">Pilih ruangan terlebih dahulu</p>

@@ -91,7 +91,15 @@ const selectedEquipment = (equipment || []).filter(item => selectedIds.includes(
         </div>
       <% } %>
 
-      <% if (currentUser && currentUser.isSuperAdmin) { %>
+      <% if (booking.status === 'A') { %>
+        <div class="d-flex gap-2 flex-wrap mt-4">
+          <form method="POST" action="/admin/bookings/<%= booking.id %>/cancel" onsubmit="return confirm('Batalkan booking ini?')">
+            <button type="submit" class="btn btn-danger">Batalkan Booking</button>
+          </form>
+        </div>
+      <% } %>
+
+      <% if (currentUser && (currentUser.isSuperAdmin || (currentUser.isAdmin && booking.status === 'P'))) { %>
         <div class="d-flex gap-2 flex-wrap mt-4">
           <a href="/bookings/<%= booking.id %>/edit" class="btn btn-secondary">Edit Booking</a>
         </div>
