@@ -2180,18 +2180,26 @@ app.get('/admin/settings', requireAdmin, (req, res) => {
 
 app.post('/admin/settings', requireAdmin, (req, res) => {
   try {
+    const prevDays = settings.getBookingWindowDays();
     const days = settings.saveBookingWindowDays(req.body.bookingWindowDays);
+    // The flash names only what actually changed in this save. The
+    // email and WhatsApp forms carry the current bookingWindowDays as a
+    // hidden field, so an unchanged window must not be recited.
+    const notes = [];
+    if (days !== prevDays) {
+      notes.push(`Pengguna biasa sekarang harus booking minimal ${days} hari sebelum acara.`);
+    }
     // The two settings cards are separate forms: the booking-window form
     // posts only bookingWindowDays, while the email form posts the SMTP
     // fields too. Only touch the email settings when the email form was
     // submitted — otherwise a window-only save would fail validation on
     // the missing SMTP port and flash a false error (the window itself
     // was already saved by then).
-    let emailNote = '';
     if (req.body.smtpPort !== undefined) {
       // Email reset: the checkbox is only present in the body when ticked.
       // A blank SMTP password keeps the stored one (never rendered to the
       // page, never overwritten by an empty field).
+      const prevEmail = settings.getEmailSettings();
       const email = settings.saveEmailSettings({
         emailResetEnabled: req.body.emailResetEnabled === 'on',
         smtpHost: req.body.smtpHost,
@@ -2199,12 +2207,19 @@ app.post('/admin/settings', requireAdmin, (req, res) => {
         smtpUser: req.body.smtpUser,
         smtpPass: req.body.smtpPass ? req.body.smtpPass : undefined
       });
-      emailNote = ` Reset password lewat email: ${email.emailResetEnabled ? 'aktif' : 'tidak aktif'}.`;
+      const emailChanged = email.emailResetEnabled !== prevEmail.emailResetEnabled
+        || email.smtpHost !== prevEmail.smtpHost
+        || email.smtpPort !== prevEmail.smtpPort
+        || email.smtpUser !== prevEmail.smtpUser
+        || Boolean(req.body.smtpPass);
+      if (emailChanged) {
+        notes.push(`Reset password lewat email: ${email.emailResetEnabled ? 'aktif' : 'tidak aktif'}.`);
+      }
     }
     // Same rule for the WhatsApp card: only touch it when the WhatsApp
     // form was submitted (it always posts waNumber, even blank).
-    let waNote = '';
     if (req.body.waNumber !== undefined) {
+      const prevWa = settings.getWhatsAppSettings();
       const wa = settings.saveWhatsAppSettings({
         waEnabled: req.body.waEnabled === 'on',
         waBaseUrl: req.body.waBaseUrl,
@@ -2212,10 +2227,16 @@ app.post('/admin/settings', requireAdmin, (req, res) => {
         waSession: req.body.waSession,
         waNumber: req.body.waNumber
       });
-      waNote = ` Notifikasi WhatsApp: ${wa.waEnabled ? 'aktif' : 'tidak aktif'}.`;
+      const waChanged = wa.waEnabled !== prevWa.waEnabled
+        || wa.waBaseUrl !== prevWa.waBaseUrl
+        || wa.waSession !== prevWa.waSession
+        || wa.waNumber !== prevWa.waNumber
+        || Boolean(req.body.waApiKey);
+      if (waChanged) {
+        notes.push(`Notifikasi WhatsApp: ${wa.waEnabled ? 'aktif' : 'tidak aktif'}.`);
+      }
     }
-    setFlash(req, 'success',
-      `Pengaturan disimpan. Pengguna biasa sekarang harus booking minimal ${days} hari sebelum acara.` + emailNote + waNote);
+    setFlash(req, 'success', 'Pengaturan disimpan.' + (notes.length ? ' ' + notes.join(' ') : ''));
   } catch (err) {
     setFlash(req, 'error', err.message);
   }
