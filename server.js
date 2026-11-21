@@ -306,6 +306,19 @@ app.post('/login', async (req, res) => {
       return res.redirect('/login');
     }
 
+    // Long-dormant users get a one-time popup pointing them to the
+    // profile page, where they can update their department. "Dormant"
+    // = previous login over a year ago, or no tracked login at all on
+    // an account older than a year (login tracking only started
+    // 2026-11-17, so a NULL last_login_at on an old account means we
+    // have never seen them come back).
+    const yearAgo = Date.now() - 365 * 24 * 60 * 60 * 1000;
+    const prevLogin = user.last_login_at ? new Date(user.last_login_at).getTime() : null;
+    const accountOld = user.created_at && new Date(user.created_at).getTime() < yearAgo;
+    if ((prevLogin && prevLogin < yearAgo) || (!prevLogin && accountOld)) {
+      req.session.showDeptNotice = true;
+    }
+
     // Record the login time for the admin "Login Terakhir" column. A
     // failure here must never block the login itself.
     try {
