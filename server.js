@@ -613,10 +613,11 @@ app.put('/api/notifications/:id/deliver', requireAuth, async (req, res) => {
 app.get('/bookings/create', requireAuth, async (req, res) => {
   try {
     const rooms = await db.getAllRooms({ status: 'A' });
-    // Department picker + participant picker are admin-only: don't even
-    // fetch those lists for regular users. They book under their own dept.
+    // The participant picker is admin-only. The department list is for
+    // everyone: regular users pick the booking's department themselves
+    // (mandatory), admins derive it from Peserta Terkait instead.
     const isAdmin = res.locals.currentUser.isAdmin;
-    const departments = isAdmin ? await db.getAllDepartments({ status: 'A' }) : [];
+    const departments = await db.getAllDepartments({ status: 'A' });
     const users = isAdmin ? await db.getAllUsers({ status: 'A' }) : [];
     const selectedRoomId = req.query.room_id || null;
 
@@ -659,20 +660,22 @@ app.post('/bookings', requireAuth, async (req, res) => {
       eventname,
       eventdescription,
       eventpeoplequantity,
+      department,
       kelengkapan,
       associated_users
     } = req.body;
-    
+
     // Participant picker is admin-only (same as the old Laravel app):
     // regular users cannot attach participants, even via a crafted
     // request. Admins no longer pick a department on the form at all:
     // the booking's department follows the first chosen Peserta Terkait,
     // and falls back to the admin's own department when none is chosen.
-    // A department value smuggled into the request is ignored.
+    // Regular users pick the department themselves on the form — it is
+    // mandatory and must be one of the active departments.
     const isAdmin = res.locals.currentUser.isAdmin;
 
     // Validation
-    if (!room_id || !date || !timestart || !timeend || !eventname || !eventpeoplequantity) {
+    if (!room_id || !date || !timestart || !timeend || !eventname || !eventpeoplequantity || (!isAdmin && !department)) {
       setFlash(req, 'error', 'Semua field wajib diisi');
       return res.redirect('/bookings/create');
     }
@@ -719,8 +722,9 @@ app.post('/bookings', requireAuth, async (req, res) => {
     }
     
     // Resolve the booking's department. For admins it follows the first
-    // chosen Peserta Terkait, falling back to the admin's own department;
-    // regular users always book under their own department.
+    // chosen Peserta Terkait, falling back to the admin's own department.
+    // Regular users choose it on the form; the value must be an active
+    // department, never silently their account's department.
     let bookingDept = null;
     if (isAdmin) {
       const assocIds = Array.isArray(associated_users)
@@ -732,10 +736,15 @@ app.post('/bookings', requireAuth, async (req, res) => {
       }
       bookingDept = bookingDept || res.locals.currentUser.dept || null;
     } else {
-      bookingDept = res.locals.currentUser.dept || null;
+      const activeDepts = await db.getAllDepartments({ status: 'A' });
+      if (activeDepts.some(d => String(d.id) === String(department))) {
+        bookingDept = department;
+      }
     }
     if (!bookingDept) {
-      setFlash(req, 'error', 'Departemen tidak ditemukan — pilih Peserta Terkait atau lengkapi departemen Anda');
+      setFlash(req, 'error', isAdmin
+        ? 'Departemen tidak ditemukan — pilih Peserta Terkait atau lengkapi departemen Anda'
+        : 'Pilih departemen untuk booking ini');
       return res.redirect('/bookings/create');
     }
     
@@ -835,8 +844,9 @@ app.get('/bookings/:id/edit', requireAuth, async (req, res) => {
     }
 
     const rooms = await db.getAllRooms({ status: 'A' });
-    // Department picker is admin-only on the edit form too.
-    const departments = res.locals.currentUser.isAdmin ? await db.getAllDepartments({ status: 'A' }) : [];
+    // Everyone gets the department picker on the edit form: the booking
+    // owner chooses the department, same as on the create form.
+    const departments = await db.getAllDepartments({ status: 'A' });
     const equipment = await db.getKelengkapanByRoom(booking.ruanganid);
     const users = await db.getAllUsers({ status: 'A' });
     const bookingUsers = await db.getBookingUsers(req.params.id);
@@ -892,9 +902,16 @@ app.post('/bookings/:id', requireAuth, async (req, res) => {
     } = req.body;
     
     // Validation (department is NOT NULL in trevents — fail cleanly, not on the DB).
-    // Regular users can't change the department: the booking keeps its own.
-    if (!room_id || !date || !timestart || !timeend || !eventname || !eventpeoplequantity || (isAdmin && !department)) {
+    // Everyone picks the department on the edit form; it is mandatory.
+    // A submitted value that is not an active department is rejected,
+    // unless it is the booking's current (possibly legacy) value.
+    if (!room_id || !date || !timestart || !timeend || !eventname || !eventpeoplequantity || !department) {
       setFlash(req, 'error', 'Semua field wajib diisi');
+      return res.redirect('/bookings/' + req.params.id + '/edit');
+    }
+    const activeDepts = await db.getAllDepartments({ status: 'A' });
+    if (!activeDepts.some(d => String(d.id) === String(department)) && String(department) !== String(booking.department)) {
+      setFlash(req, 'error', 'Pilih departemen untuk booking ini');
       return res.redirect('/bookings/' + req.params.id + '/edit');
     }
     
@@ -921,7 +938,7 @@ app.post('/bookings/:id', requireAuth, async (req, res) => {
       eventdescription: eventdescription || '-',
       eventpeoplequantity,
       kelengkapanruangan: kelengkapanStr,
-      department: isAdmin ? (department || null) : booking.department
+      department
     });
 
     // "Simpan & Setujui": an admin saving a pending booking can approve it
