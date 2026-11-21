@@ -2181,7 +2181,15 @@ app.get('/admin/settings', requireAdmin, (req, res) => {
 app.post('/admin/settings', requireAdmin, (req, res) => {
   try {
     const prevDays = settings.getBookingWindowDays();
-    const days = settings.saveBookingWindowDays(req.body.bookingWindowDays);
+    // Only the booking-window form may change the window. The email and
+    // WhatsApp forms also carry bookingWindowDays (a hidden field with
+    // the value from when the page was loaded); saving those cards must
+    // not rewrite the window from that possibly-stale copy. The booking
+    // form is the one that posts neither smtpPort nor waNumber.
+    let days = prevDays;
+    if (req.body.smtpPort === undefined && req.body.waNumber === undefined) {
+      days = settings.saveBookingWindowDays(req.body.bookingWindowDays);
+    }
     // The flash names only what actually changed in this save. The
     // email and WhatsApp forms carry the current bookingWindowDays as a
     // hidden field, so an unchanged window must not be recited.
