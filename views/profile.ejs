@@ -1,0 +1,38 @@
+<div class="container" style="max-width: 760px; padding: 2.5rem 1.5rem;">
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Profil Saya</h2>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="/profile">
+        <div class="form-group">
+          <label class="form-label">Nama Lengkap</label>
+          <p class="form-control" style="background: #f8f9fa; margin: 0;"><%= user.namalengkap %></p>
+          <p class="text-muted" style="margin-top: 0.4rem;">Nama tidak dapat diubah. Hubungi admin jika ada kesalahan.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="email">Email</label>
+          <input type="email" name="email" id="email" class="form-control" value="<%= user.email %>" required>
+          <p class="text-muted" style="margin-top: 0.4rem;">Email ini dipakai untuk login.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="notelp">Nomor Telepon</label>
+          <input type="tel" name="notelp" id="notelp" class="form-control" value="<%= user.notelp || '' %>" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="department">Departemen</label>
+          <select name="department" id="department" class="form-control" required>
+            <option value="">-- Pilih Departemen --</option>
+            <% departments.forEach(dept => { %>
+              <option value="<%= dept.id %>" <%= String(user.dept) === String(dept.id) ? 'selected' : '' %>><%= dept.namadepartment %></option>
+            <% }) %>
+            <% if (user.dept && !departments.some(d => String(d.id) === String(user.dept))) { %>
+              <option value="<%= user.dept %>" selected><%= user.dept %></option>
+            <% } %>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Simpan Perubahan</button>
+      </form>
+    </div>
+  </div>
+</div>

@@ -28,6 +28,7 @@
         <li><a href="/rooms" class="<%= typeof active !== 'undefined' && active === 'rooms' ? 'active' : '' %>">Ruangan</a></li>
         <% if (typeof currentUser !== 'undefined' && currentUser) { %>
           <li><a href="/bookings" class="<%= typeof active !== 'undefined' && active === 'bookings' ? 'active' : '' %>">Booking Saya</a></li>
+          <li><a href="/profile" class="<%= typeof active !== 'undefined' && active === 'profile' ? 'active' : '' %>">Profil</a></li>
           <li><button type="button" id="notif-bell" class="nav-bell">🔔 Notifikasi<% if (typeof notifCount !== 'undefined' && notifCount > 0) { %><span class="nav-count"><%= notifCount %></span><% } %></button></li>
           <% if (currentUser.isAdmin) { %>
             <li><a href="/admin" class="<%= typeof active !== 'undefined' && active === 'admin' ? 'active' : '' %>">Admin</a></li>

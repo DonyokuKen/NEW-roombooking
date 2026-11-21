@@ -534,6 +534,71 @@ app.get('/logout', (req, res) => {
 });
 
 // ============================================================
+// PROFILE ROUTES
+// ============================================================
+
+// My profile — users may edit their department, email and phone
+// number. The name is read-only: it is displayed but never accepted
+// from the form, so a crafted request cannot change it.
+app.get('/profile', requireAuth, async (req, res) => {
+  try {
+    const user = await db.findUserById(req.session.userId);
+    if (!user) {
+      setFlash(req, 'error', 'Pengguna tidak ditemukan');
+      return res.redirect('/login');
+    }
+    const departments = await db.getAllDepartments({ status: 'A' });
+    res.render('profile', { title: 'Profil Saya', user, departments });
+  } catch (err) {
+    console.error('Profile page error:', err);
+    res.status(500).send('Server error');
+  }
+});
+
+app.post('/profile', requireAuth, async (req, res) => {
+  try {
+    const user = await db.findUserById(req.session.userId);
+    if (!user) {
+      setFlash(req, 'error', 'Pengguna tidak ditemukan');
+      return res.redirect('/login');
+    }
+
+    const email = (req.body.email || '').trim();
+    const notelp = (req.body.notelp || '').trim();
+    const dept = req.body.department;
+
+    // Validation. namalengkap is deliberately never read from the body.
+    if (!email || !notelp || !dept) {
+      setFlash(req, 'error', 'Semua field wajib diisi');
+      return res.redirect('/profile');
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setFlash(req, 'error', 'Format email tidak valid');
+      return res.redirect('/profile');
+    }
+    const departments = await db.getAllDepartments({ status: 'A' });
+    if (!departments.some(d => String(d.id) === String(dept))) {
+      setFlash(req, 'error', 'Pilih departemen yang valid');
+      return res.redirect('/profile');
+    }
+    // Email is the login identifier, so it must stay unique.
+    const existing = await db.findUserByEmail(email);
+    if (existing && String(existing.id) !== String(user.id)) {
+      setFlash(req, 'error', 'Email sudah dipakai pengguna lain');
+      return res.redirect('/profile');
+    }
+
+    await db.updateUser(user.id, { email, notelp, dept });
+    setFlash(req, 'success', 'Profil berhasil diperbarui');
+    res.redirect('/profile');
+  } catch (err) {
+    console.error('Update profile error:', err);
+    setFlash(req, 'error', 'Terjadi kesalahan sistem');
+    res.redirect('/profile');
+  }
+});
+
+// ============================================================
 // USER BOOKING ROUTES
 // ============================================================
 
@@ -1013,7 +1078,7 @@ app.post('/bookings/:id/cancel', requireAuth, async (req, res) => {
 app.use('/admin', (req, res, next) => {
   res.locals.layout = 'layouts/admin';
   const seg = (req.path || '/').split('/').filter(Boolean)[0] || '';
-  res.locals.active = { '': 'overview', calendar: 'calendar', bookings: 'bookings', rooms: 'rooms', users: 'users', departments: 'departments', equipment: 'equipment', settings: 'settings' }[seg] || '';
+  res.locals.active = { '': 'overview', calendar: 'calendar', bookings: 'bookings', rooms: 'rooms', users: 'users', departments: 'departments', equipment: 'equipment', settings: 'settings', profile: 'profile' }[seg] || '';
   next();
 });
 
