@@ -57,7 +57,7 @@
             <select name="department" id="department" class="form-control" required>
               <option value="">-- Pilih Departemen --</option>
               <% departments.forEach(dept => { %>
-                <option value="<%= dept.id %>"><%= dept.namadepartment %></option>
+                <option value="<%= dept.id %>" <%= currentUser && String(currentUser.dept) === String(dept.id) ? 'selected' : '' %>><%= dept.namadepartment %></option>
               <% }) %>
             </select>
           </div>
