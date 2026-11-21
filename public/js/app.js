@@ -62,24 +62,25 @@ if (document.getElementById('booking-form')) {
   if (roomSelect && kelengkapanContainer) {
     roomSelect.addEventListener('change', async function() {
       const roomId = this.value;
+      // Keep whatever is already ticked (the edit form renders the
+      // saved selection server-side; a plain rebuild would wipe it).
+      // This must be read BEFORE the container is overwritten below.
+      const kept = new Set(
+        Array.from(kelengkapanContainer.querySelectorAll('input[name="kelengkapan[]"]:checked'))
+          .map(cb => String(cb.value))
+      );
       kelengkapanContainer.innerHTML = '<p class="text-muted">Loading equipment...</p>';
-      
+
       if (!roomId) {
         kelengkapanContainer.innerHTML = '<p class="text-muted">Pilih ruangan terlebih dahulu</p>';
         return;
       }
-      
+
       try {
         const response = await fetch(`/api/kelengkapan?room=${roomId}`);
         const data = await response.json();
 
         if (data.success && data.data.length > 0) {
-          // Keep whatever is already ticked (the edit form renders the
-          // saved selection server-side; a plain rebuild would wipe it).
-          const kept = new Set(
-            Array.from(kelengkapanContainer.querySelectorAll('input[name="kelengkapan[]"]:checked'))
-              .map(cb => String(cb.value))
-          );
           let html = '<div class="form-group"><label class="form-label">Kelengkapan yang Dibutuhkan</label>';
           html += '<div class="dropdown" data-multiselect data-placeholder="Pilih kelengkapan..." data-picked-word="kelengkapan dipilih">';
           html += '<button type="button" class="form-control dropdown-toggle"><span class="dropdown-label">Pilih kelengkapan...</span></button>';
