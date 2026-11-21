@@ -2,8 +2,9 @@
 
 // Searchable multi-select dropdown (same pattern as the Peserta Terkait
 // picker): a toggle button, a panel with a search box and a checkbox
-// list, and a label showing how many are picked. The real checkboxes
-// stay inside the form, so the POST is unchanged.
+// list, and the picked items shown by name as removable chips in the
+// toggle. The real checkboxes stay inside the form, so the POST is
+// unchanged.
 function initMultiDropdown(dd) {
   if (!dd || dd.dataset.init) return;
   dd.dataset.init = '1';
@@ -12,11 +13,42 @@ function initMultiDropdown(dd) {
   var search = dd.querySelector('.dropdown-search');
   var label = dd.querySelector('.dropdown-label');
   var placeholder = dd.dataset.placeholder || 'Pilih...';
-  var pickedWord = dd.dataset.pickedWord || 'dipilih';
+  // Show the selected items by name as removable chips (not a count),
+  // so the booker sees exactly what is picked without opening the panel.
   function updateLabel() {
-    var n = dd.querySelectorAll('input[type="checkbox"]:checked').length;
-    label.textContent = n === 0 ? placeholder : n + ' ' + pickedWord;
+    var checked = dd.querySelectorAll('input[type="checkbox"]:checked');
+    label.innerHTML = '';
+    if (checked.length === 0) {
+      label.textContent = placeholder;
+      return;
+    }
+    checked.forEach(function (cb) {
+      var item = cb.closest('.dropdown-item');
+      var nameEl = item ? item.querySelector('span') : null;
+      var chip = document.createElement('span');
+      chip.className = 'dropdown-chip';
+      chip.textContent = nameEl ? nameEl.textContent.trim() : cb.value;
+      var x = document.createElement('span');
+      x.className = 'dropdown-chip-x';
+      x.textContent = '×';
+      x.title = 'Hapus';
+      x.dataset.value = cb.value;
+      chip.appendChild(x);
+      label.appendChild(chip);
+    });
   }
+  // Clicking a chip's × unticks that item without toggling the panel.
+  label.addEventListener('click', function (e) {
+    var x = e.target.closest('.dropdown-chip-x');
+    if (!x) return;
+    e.stopPropagation();
+    e.preventDefault();
+    var cb = dd.querySelector('input[type="checkbox"][value="' + x.dataset.value + '"]');
+    if (cb) {
+      cb.checked = false;
+      updateLabel();
+    }
+  });
   if (toggle && panel) {
     toggle.addEventListener('click', function (e) {
       e.stopPropagation();

@@ -894,6 +894,38 @@ table tbody tr:last-child td {
   flex-shrink: 0;
 }
 
+/* Selected items shown as named chips inside the toggle */
+.dropdown-label {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.dropdown-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px 2px 10px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.dropdown-chip-x {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-weight: 700;
+  padding: 0 2px;
+}
+
+.dropdown-chip-x:hover {
+  color: var(--accent-blue);
+}
+
 .dropdown-panel {
   /* In-flow (not absolutely positioned) on purpose: an overlay panel
      would cover the submit button below it and eat the tap */
