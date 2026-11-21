@@ -64,6 +64,8 @@ app.use(async (req, res, next) => {
         } catch (err) {
           res.locals.notifCount = 0;
         }
+        // One-time popup for long-dormant users (flagged at login).
+        res.locals.showDeptNotice = !!req.session.showDeptNotice;
       }
     } catch (err) {
       console.error('Error loading current user:', err);
@@ -554,6 +556,8 @@ app.get('/logout', (req, res) => {
 // number. The name is read-only: it is displayed but never accepted
 // from the form, so a crafted request cannot change it.
 app.get('/profile', requireAuth, async (req, res) => {
+  // Visiting the profile page counts as having seen the notice.
+  req.session.showDeptNotice = false;
   try {
     const user = await db.findUserById(req.session.userId);
     if (!user) {
@@ -609,6 +613,12 @@ app.post('/profile', requireAuth, async (req, res) => {
     setFlash(req, 'error', 'Terjadi kesalahan sistem');
     res.redirect('/profile');
   }
+});
+
+// Dismiss the dormant-user profile notice for this session.
+app.post('/profile-notice/dismiss', requireAuth, (req, res) => {
+  req.session.showDeptNotice = false;
+  res.json({ success: true });
 });
 
 // ============================================================

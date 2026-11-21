@@ -72,6 +72,26 @@
     </div>
   </footer>
 
+  <% if (typeof showDeptNotice !== 'undefined' && showDeptNotice) { %>
+  <!-- Welcome-back popup for long-dormant users -->
+  <div class="notif-modal-backdrop open" id="dept-notice">
+    <div class="notif-modal">
+      <h3>Sudah lama tidak berjumpa!</h3>
+      <p>Selamat datang kembali. Apabila Anda sudah berpindah departemen, kini Anda dapat memperbaruinya sendiri melalui halaman <strong>Profil</strong>, sekaligus mengganti email dan nomor telepon.</p>
+      <div class="notif-actions">
+        <button type="button" class="btn btn-secondary" id="dept-notice-close" style="flex:1">Nanti saja</button>
+        <a href="/profile" class="btn btn-primary" style="flex:1">Ke Profil</a>
+      </div>
+    </div>
+  </div>
+  <script>
+    document.getElementById('dept-notice-close').addEventListener('click', function () {
+      document.getElementById('dept-notice').classList.remove('open');
+      fetch('/profile-notice/dismiss', { method: 'POST' }).catch(function () {});
+    });
+  </script>
+  <% } %>
+
   <!-- Notification permission popup (bell) — no navigation, no new tab -->
   <div class="notif-modal-backdrop" id="notif-modal">
     <div class="notif-modal">
